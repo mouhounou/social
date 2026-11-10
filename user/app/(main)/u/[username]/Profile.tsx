@@ -42,7 +42,7 @@ export default function Profile({ username }: { username: string }) {
           {user.cover && <Image src={user.cover} alt="" fill priority className="object-cover" sizes="768px" />}
         </div>
         <div className="px-6 pb-6">
-          <div className="-mt-12 flex items-end justify-between gap-4">
+          <div className="relative -mt-12 flex items-end justify-between gap-4">
             <Avatar src={user.avatar} name={user.name} size={104} className="ring-4 ring-white" />
             {user.isMe ? (
               <Link href="/settings" className="btn-ghost">

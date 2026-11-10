@@ -3,6 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { Heart, MessageCircle } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { api } from "@/lib/api";
 import { shortAgo } from "@/lib/time";
@@ -40,8 +41,11 @@ export function NotificationItem({ n }: { n: Notification }) {
             {n.post.image ? (
               <Image src={n.post.image} alt="" width={40} height={40} className="size-10 rounded-xl object-cover" />
             ) : (
-              <span className="flex size-10 items-center justify-center rounded-xl bg-field p-1 text-center text-[8px] leading-tight text-muted">
-                {n.post.title.slice(0, 20)}
+              <span
+                title={n.post.title}
+                className="flex size-10 items-center justify-center rounded-xl bg-brand-soft text-brand"
+              >
+                {n.type === "like" ? <Heart className="size-4" /> : <MessageCircle className="size-4" />}
               </span>
             )}
           </Link>
