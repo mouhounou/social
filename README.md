@@ -29,6 +29,15 @@ pnpm dev               # http://localhost:5000
 
 Sans `SMTP_USER`, les emails ne partent pas : le code OTP est affiché dans la console de l'API, pratique en dev.
 
+### Tests de l'API
+
+```bash
+cd backend
+pnpm test
+```
+
+Les tests tournent sur une base `solola_test` (vidée au début et à la fin) du MongoDB local, ou sur `MONGO_URI_TEST`. Les mails sont interceptés, rien n'est envoyé.
+
 ### Front
 
 ```bash

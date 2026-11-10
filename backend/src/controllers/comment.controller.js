@@ -2,6 +2,8 @@ const Comment = require("../models/Comment");
 const Post = require("../models/Post");
 const Notification = require("../models/Notification");
 const AppError = require("../utils/AppError");
+const { text } = require("../utils/input");
+const { findVisiblePost } = require("../utils/postAccess");
 
 function serialize(c) {
   return {
@@ -19,18 +21,18 @@ function serialize(c) {
 }
 
 async function listComments(req, res) {
-  const comments = await Comment.find({ post: req.params.id })
+  const post = await findVisiblePost(req.params.id, req.user);
+  const comments = await Comment.find({ post: post._id })
     .sort({ createdAt: 1 })
     .populate("author", "name username avatar");
   res.json({ comments: comments.map(serialize) });
 }
 
 async function addComment(req, res) {
-  const content = req.body.content?.trim();
+  const content = text(req.body.content);
   if (!content) throw new AppError("Le commentaire est vide");
 
-  const post = await Post.findById(req.params.id);
-  if (!post) throw new AppError("Publication introuvable", 404);
+  const post = await findVisiblePost(req.params.id, req.user);
 
   const comment = await Comment.create({ post: post._id, author: req.user._id, content });
   await Post.updateOne({ _id: post._id }, { $inc: { commentsCount: 1 } });
@@ -50,7 +52,9 @@ async function deleteComment(req, res) {
   if (!allowed) throw new AppError("Action non autorisée", 403);
 
   await comment.deleteOne();
-  await Post.updateOne({ _id: comment.post._id }, { $inc: { commentsCount: -1 } });
+  if (comment.post) {
+    await Post.updateOne({ _id: comment.post._id, commentsCount: { $gt: 0 } }, { $inc: { commentsCount: -1 } });
+  }
 
   res.json({ message: "Commentaire supprimé" });
 }
