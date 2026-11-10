@@ -14,7 +14,10 @@ router.patch(
   ]),
   ctrl.updateMe
 );
+router.patch("/me/password", protect, ctrl.changePassword);
 router.post("/:id/follow", protect, ctrl.toggleFollow);
+router.get("/:username/followers", optionalAuth, ctrl.followers);
+router.get("/:username/following", optionalAuth, ctrl.following);
 router.get("/:username", optionalAuth, ctrl.getProfile);
 
 module.exports = router;

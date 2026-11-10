@@ -27,11 +27,9 @@ async function myStats(req, res) {
 
 async function updateMe(req, res) {
   const user = req.user;
-  const { name, bio, username } = req.body;
-
-  if (name !== undefined) user.name = name;
-  if (bio !== undefined) user.bio = bio;
-  if (username !== undefined) user.username = username;
+  for (const field of ["name", "username", "bio", "location", "website"]) {
+    if (req.body[field] !== undefined) user[field] = req.body[field];
+  }
 
   const avatar = req.files?.avatar?.[0];
   const cover = req.files?.cover?.[0];
@@ -47,9 +45,60 @@ async function updateMe(req, res) {
     await removeImage(old);
   }
 
+  for (const field of ["avatar", "cover"]) {
+    const key = `remove${field[0].toUpperCase()}${field.slice(1)}`;
+    if (req.body[key] === "true" && !req.files?.[field]) {
+      await removeImage(user[field]?.publicId);
+      user[field] = undefined;
+    }
+  }
+
   await user.save();
   res.json({ user: user.toPublic() });
 }
+
+async function changePassword(req, res) {
+  const { currentPassword, newPassword } = req.body;
+  if (!currentPassword || !newPassword) throw new AppError("Remplis les deux champs");
+  if (newPassword.length < 6) throw new AppError("Le nouveau mot de passe doit faire au moins 6 caractères");
+
+  const user = await User.findById(req.user._id).select("+password");
+  if (!(await user.comparePassword(currentPassword))) {
+    throw new AppError("Mot de passe actuel incorrect", 401);
+  }
+
+  user.password = newPassword;
+  await user.save();
+  res.json({ message: "Mot de passe mis à jour" });
+}
+
+function connections(field) {
+  return async (req, res) => {
+    const user = await User.findOne({ username: req.params.username.toLowerCase() }).populate(
+      field,
+      "name username avatar bio isBlocked"
+    );
+    if (!user) throw new AppError("Utilisateur introuvable", 404);
+
+    const following = new Set((req.user?.following || []).map(String));
+    const users = user[field]
+      .filter((u) => !u.isBlocked)
+      .map((u) => ({
+        _id: u._id,
+        name: u.name,
+        username: u.username,
+        avatar: u.avatar?.url || null,
+        bio: u.bio,
+        isFollowing: following.has(String(u._id)),
+        isMe: req.user ? u._id.equals(req.user._id) : false,
+      }));
+
+    res.json({ users });
+  };
+}
+
+const followers = connections("followers");
+const following = connections("following");
 
 async function toggleFollow(req, res) {
   const target = await User.findById(req.params.id);
@@ -107,4 +156,13 @@ async function suggestions(req, res) {
   res.json({ users: result });
 }
 
-module.exports = { getProfile, myStats, updateMe, toggleFollow, suggestions };
+module.exports = {
+  getProfile,
+  myStats,
+  updateMe,
+  changePassword,
+  toggleFollow,
+  suggestions,
+  followers,
+  following,
+};

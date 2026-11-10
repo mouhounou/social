@@ -7,6 +7,8 @@ export type User = {
   email?: string;
   role: Role;
   bio: string;
+  location: string;
+  website: string;
   avatar: string | null;
   cover: string | null;
   followersCount: number;
@@ -54,6 +56,8 @@ export type Notification = {
   post: { _id: string; title: string; image: string | null } | null;
   following: boolean;
 };
+
+export type Connection = Author & { bio: string; isFollowing: boolean; isMe: boolean };
 
 export type Suggestion = Author & { followersCount: number; hint: string };
 

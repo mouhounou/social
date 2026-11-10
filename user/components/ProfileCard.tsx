@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth";
 import { api } from "@/lib/api";
 import type { User } from "@/lib/types";
+import { DEFAULT_COVER } from "@/lib/images";
 import Avatar from "./Avatar";
 
 export default function ProfileCard() {
@@ -28,11 +29,18 @@ export default function ProfileCard() {
 
   return (
     <div className="card p-4">
-      <div className="relative h-[70px] overflow-hidden rounded-2xl bg-gradient-to-r from-amber-100 via-orange-50 to-sky-100">
-        {user.cover && <Image src={user.cover} alt="" fill className="object-cover" sizes="260px" />}
+      <div className="relative h-[86px] overflow-hidden rounded-2xl bg-[#F3ECE3]">
+        <Image
+          src={user.cover || DEFAULT_COVER}
+          alt=""
+          fill
+          unoptimized={!user.cover}
+          className="object-cover"
+          sizes="280px"
+        />
       </div>
       <div className="relative -mt-9 flex flex-col items-center text-center">
-        <Avatar src={user.avatar} name={user.name} size={80} className="ring-4 ring-white" />
+        <Avatar src={user.avatar} name={user.name} size={72} className="ring-4 ring-white" />
         <p className="mt-3 font-semibold">{user.name}</p>
         <p className="text-sm text-muted">@{user.username}</p>
       </div>

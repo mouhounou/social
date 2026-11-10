@@ -1,4 +1,5 @@
 const cloudinary = require("cloudinary").v2;
+const AppError = require("../utils/AppError");
 
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -7,6 +8,9 @@ cloudinary.config({
 });
 
 function uploadBuffer(buffer, folder) {
+  if (!process.env.CLOUDINARY_API_KEY) {
+    return Promise.reject(new AppError("L'envoi d'images n'est pas configuré sur le serveur", 503));
+  }
   return new Promise((resolve, reject) => {
     const stream = cloudinary.uploader.upload_stream(
       { folder: `solola/${folder}`, resource_type: "image" },
