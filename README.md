@@ -40,6 +40,11 @@ npm run dev            # http://localhost:3000
 
 Le front appelle `/api/*`, que Next réécrit vers `API_URL`. Le cookie de session est donc posé sur le même domaine que le front.
 
+## Profil
+
+Sans photo ou couverture, le front affiche `user/public/default-avatar.svg` et `user/public/default-cover.svg`.
+Depuis sa page profil, l'utilisateur change directement sa couverture et son avatar (envoyés sur Cloudinary), ou ouvre « Modifier le profil » pour ses infos (nom, pseudo, bio, ville, site) et pour revenir aux images par défaut. Le mot de passe se change dans Paramètres.
+
 ## Rôles
 
 | Rôle    | Peut faire                                                      |
@@ -77,9 +82,12 @@ Le rôle `reader` ou `author` se choisit à l'inscription. `admin` se donne dire
 | POST    | `/api/posts/:id/comments`     | connecté       |
 | DELETE  | `/api/comments/:id`           | auteur du commentaire ou de l'article, admin |
 | GET     | `/api/users/me`               | connecté       |
-| PATCH   | `/api/users/me` (avatar, cover) | connecté     |
+| PATCH   | `/api/users/me` (nom, bio, ville, site, avatar, cover) | connecté |
+| PATCH   | `/api/users/me/password`      | connecté       |
 | GET     | `/api/users/suggestions`      | public         |
 | GET     | `/api/users/:username`        | public         |
+| GET     | `/api/users/:username/followers` | public      |
+| GET     | `/api/users/:username/following` | public      |
 | POST    | `/api/users/:id/follow`       | connecté       |
 | GET     | `/api/notifications`          | connecté       |
 | PATCH   | `/api/notifications/read`     | connecté       |

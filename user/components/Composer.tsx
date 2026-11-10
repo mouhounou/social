@@ -104,7 +104,7 @@ export default function Composer({ onCreated }: { onCreated: (post: Post) => voi
               value={content}
               onFocus={() => setOpen(true)}
               onChange={(e) => setContent(e.target.value)}
-              placeholder="Partage quelque chose… #hashtags bienvenus"
+              placeholder="Partage quelque chose…"
               rows={open ? 4 : 1}
               className="input resize-none rounded-[22px] pr-12"
             />
