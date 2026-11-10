@@ -38,6 +38,7 @@ export default function Shortcuts() {
             <li key={name}>
               <Link
                 href={`/?category=${encodeURIComponent(name)}`}
+                prefetch={false}
                 className={`flex items-center gap-3 rounded-xl p-2 text-sm font-medium transition hover:bg-field ${
                   active === name ? "bg-brand-soft text-brand" : ""
                 }`}

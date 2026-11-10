@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Bookmark, EllipsisVertical, Heart, MessageCircle, Pencil, Send, Trash2, Users } from "lucide-react";
 import { useAuth } from "@/lib/auth";
+import { useOutsideClick } from "@/lib/useOutsideClick";
 import { api } from "@/lib/api";
 import { compact, timeAgo } from "@/lib/time";
 import type { Post } from "@/lib/types";
@@ -25,6 +26,7 @@ export default function PostCard({ post: initial, full = false, onDeleted, onCom
   const router = useRouter();
   const [post, setPost] = useState(initial);
   const [menu, setMenu] = useState(false);
+  const menuRef = useOutsideClick<HTMLDivElement>(menu, () => setMenu(false));
   const [copied, setCopied] = useState(false);
 
   const isOwner = user && (user._id === post.author._id || user.role === "admin");
@@ -86,13 +88,12 @@ export default function PostCard({ post: initial, full = false, onDeleted, onCom
         </div>
 
         {isOwner && (
-          <div className="relative">
+          <div ref={menuRef} className="relative">
             <button onClick={() => setMenu((m) => !m)} className="rounded-full p-1.5 hover:bg-field">
               <EllipsisVertical className="size-5" />
             </button>
             {menu && (
               <div
-                onMouseLeave={() => setMenu(false)}
                 className="card absolute right-0 z-10 mt-1 w-40 p-1.5 shadow-lg ring-1 ring-line"
               >
                 <Link

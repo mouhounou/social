@@ -18,6 +18,7 @@ export default function ExplorePage() {
               <Link
                 key={c}
                 href={`/?category=${encodeURIComponent(c)}`}
+                prefetch={false}
                 className="rounded-full bg-field px-4 py-1.5 text-xs font-medium hover:bg-brand-soft hover:text-brand"
               >
                 {c}

@@ -8,7 +8,7 @@ export default function RichText({ text }: { text: string }) {
     <>
       {parts.map((part, i) =>
         part.startsWith("#") ? (
-          <Link key={i} href={`/?tag=${encodeURIComponent(part.slice(1).toLowerCase())}`} className="text-brand hover:underline">
+          <Link key={i} prefetch={false} href={`/?tag=${encodeURIComponent(part.slice(1).toLowerCase())}`} className="text-brand hover:underline">
             {part}
           </Link>
         ) : (
