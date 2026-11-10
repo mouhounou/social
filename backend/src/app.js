@@ -11,6 +11,8 @@ const { notFound, errorHandler } = require("./middlewares/error");
 
 const app = express();
 
+app.set("trust proxy", process.env.TRUST_PROXY || "loopback");
+
 app.use(
   cors({
     origin: process.env.CLIENT_URL || "http://localhost:3000",
@@ -19,6 +21,10 @@ app.use(
 );
 app.use(express.json({ limit: "1mb" }));
 app.use(cookieParser());
+app.use((req, res, next) => {
+  req.body ??= {};
+  next();
+});
 
 app.get("/api/health", (req, res) => res.json({ ok: true }));
 

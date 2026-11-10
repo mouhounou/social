@@ -2,7 +2,9 @@ const User = require("../models/User");
 const Post = require("../models/Post");
 const Notification = require("../models/Notification");
 const AppError = require("../utils/AppError");
+const { optionalText } = require("../utils/input");
 const { uploadBuffer, removeImage } = require("../config/cloudinary");
+const { signToken, setAuthCookie } = require("../utils/token");
 
 function profileOf(user, viewer) {
   const data = user.toPublic();
@@ -28,39 +30,37 @@ async function myStats(req, res) {
 async function updateMe(req, res) {
   const user = req.user;
   for (const field of ["name", "username", "bio", "location", "website"]) {
-    if (req.body[field] !== undefined) user[field] = req.body[field];
+    const value = optionalText(req.body[field]);
+    if (value === null) throw new AppError(`Le champ ${field} est invalide`);
+    if (value !== undefined) user[field] = value;
   }
+  await user.validate();
 
-  const avatar = req.files?.avatar?.[0];
-  const cover = req.files?.cover?.[0];
+  const previous = { avatar: user.avatar?.publicId, cover: user.cover?.publicId };
 
-  if (avatar) {
-    const old = user.avatar?.publicId;
-    user.avatar = await uploadBuffer(avatar.buffer, "avatars");
-    await removeImage(old);
-  }
-  if (cover) {
-    const old = user.cover?.publicId;
-    user.cover = await uploadBuffer(cover.buffer, "covers");
-    await removeImage(old);
-  }
-
-  for (const field of ["avatar", "cover"]) {
-    const key = `remove${field[0].toUpperCase()}${field.slice(1)}`;
-    if (req.body[key] === "true" && !req.files?.[field]) {
-      await removeImage(user[field]?.publicId);
-      user[field] = undefined;
-    }
+  for (const [field, folder] of [["avatar", "avatars"], ["cover", "covers"]]) {
+    const file = req.files?.[field]?.[0];
+    const removeKey = `remove${field[0].toUpperCase()}${field.slice(1)}`;
+    if (file) user[field] = await uploadBuffer(file.buffer, folder);
+    else if (req.body[removeKey] === "true") user[field] = undefined;
   }
 
   await user.save();
+
+  for (const field of ["avatar", "cover"]) {
+    if (previous[field] && previous[field] !== user[field]?.publicId) await removeImage(previous[field]);
+  }
+
   res.json({ user: user.toPublic() });
 }
 
 async function changePassword(req, res) {
   const { currentPassword, newPassword } = req.body;
-  if (!currentPassword || !newPassword) throw new AppError("Remplis les deux champs");
+  if (typeof currentPassword !== "string" || typeof newPassword !== "string" || !currentPassword || !newPassword) {
+    throw new AppError("Remplis les deux champs");
+  }
   if (newPassword.length < 6) throw new AppError("Le nouveau mot de passe doit faire au moins 6 caractères");
+  if (Buffer.byteLength(newPassword) > 72) throw new AppError("Le mot de passe est trop long (72 caractères max)");
 
   const user = await User.findById(req.user._id).select("+password");
   if (!(await user.comparePassword(currentPassword))) {
@@ -69,6 +69,8 @@ async function changePassword(req, res) {
 
   user.password = newPassword;
   await user.save();
+
+  setAuthCookie(res, signToken(user));
   res.json({ message: "Mot de passe mis à jour" });
 }
 
@@ -102,23 +104,25 @@ const following = connections("following");
 
 async function toggleFollow(req, res) {
   const target = await User.findById(req.params.id);
-  if (!target) throw new AppError("Utilisateur introuvable", 404);
+  if (!target || target.isBlocked) throw new AppError("Utilisateur introuvable", 404);
 
   const me = req.user;
   if (target._id.equals(me._id)) throw new AppError("Tu ne peux pas te suivre toi-même");
 
-  const following = me.following.some((id) => id.equals(target._id));
+  const added = await User.updateOne({ _id: me._id, following: { $ne: target._id } }, { $push: { following: target._id } });
+  const following = added.modifiedCount === 1;
+  const notification = { recipient: target._id, actor: me._id, type: "follow" };
 
   if (following) {
+    await User.updateOne({ _id: target._id }, { $addToSet: { followers: me._id } });
+    await Notification.push(notification);
+  } else {
     await User.updateOne({ _id: me._id }, { $pull: { following: target._id } });
     await User.updateOne({ _id: target._id }, { $pull: { followers: me._id } });
-  } else {
-    await User.updateOne({ _id: me._id }, { $addToSet: { following: target._id } });
-    await User.updateOne({ _id: target._id }, { $addToSet: { followers: me._id } });
-    await Notification.push({ recipient: target._id, actor: me._id, type: "follow" });
+    await Notification.pull(notification);
   }
 
-  res.json({ following: !following });
+  res.json({ following });
 }
 
 async function suggestions(req, res) {

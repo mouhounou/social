@@ -3,15 +3,21 @@ const bcrypt = require("bcrypt");
 const User = require("../models/User");
 const Otp = require("../models/Otp");
 const AppError = require("../utils/AppError");
-const { sendMail } = require("../config/mailer");
+const mailer = require("../config/mailer");
 const { otpEmail, welcomeEmail } = require("../utils/mailTemplates");
 const { signToken, setAuthCookie, clearAuthCookie } = require("../utils/token");
+const { text, EMAIL_RE } = require("../utils/input");
 
 const OTP_TTL = 10 * 60 * 1000;
 const MAX_ATTEMPTS = 5;
 
 function sha256(value) {
   return crypto.createHash("sha256").update(value).digest("hex");
+}
+
+function checkPassword(password) {
+  if (password.length < 6) throw new AppError("Le mot de passe doit faire au moins 6 caractères");
+  if (Buffer.byteLength(password) > 72) throw new AppError("Le mot de passe est trop long (72 caractères max)");
 }
 
 function sendSession(res, user, status = 200) {
@@ -21,36 +27,38 @@ function sendSession(res, user, status = 200) {
 }
 
 async function register(req, res) {
-  const { name, username, email, password, role } = req.body;
+  const name = text(req.body.name);
+  const username = text(req.body.username);
+  const email = text(req.body.email).toLowerCase();
+  const password = typeof req.body.password === "string" ? req.body.password : "";
 
   if (!name || !username || !email || !password) {
     throw new AppError("Tous les champs sont obligatoires");
   }
-  if (password.length < 6) {
-    throw new AppError("Le mot de passe doit faire au moins 6 caractères");
-  }
+  if (!EMAIL_RE.test(email)) throw new AppError("Adresse email invalide");
+  checkPassword(password);
 
   const user = await User.create({
     name,
     username,
     email,
     password,
-    role: role === "author" ? "author" : "reader",
+    role: req.body.role === "author" ? "author" : "reader",
   });
 
-  sendMail({ to: user.email, subject: "Bienvenue sur Solola", html: welcomeEmail(user.name) }).catch(
-    (err) => console.warn("Mail de bienvenue :", err.message)
-  );
+  mailer
+    .sendMail({ to: user.email, subject: "Bienvenue sur Solola", html: welcomeEmail(user.name) })
+    .catch((err) => console.warn("Mail de bienvenue :", err.message));
 
   sendSession(res, user, 201);
 }
 
 async function login(req, res) {
-  const { identifier, password } = req.body;
+  const identifier = text(req.body.identifier).toLowerCase();
+  const password = typeof req.body.password === "string" ? req.body.password : "";
   if (!identifier || !password) throw new AppError("Identifiant et mot de passe requis");
 
-  const value = identifier.toLowerCase().trim();
-  const user = await User.findOne({ $or: [{ email: value }, { username: value }] }).select("+password");
+  const user = await User.findOne({ $or: [{ email: identifier }, { username: identifier }] }).select("+password");
 
   if (!user || !(await user.comparePassword(password))) {
     throw new AppError("Identifiants incorrects", 401);
@@ -74,12 +82,12 @@ function session(req, res) {
 }
 
 async function forgotPassword(req, res) {
-  const email = req.body.email?.toLowerCase().trim();
+  const email = text(req.body.email).toLowerCase();
   if (!email) throw new AppError("Email requis");
 
   const user = await User.findOne({ email });
 
-  if (user) {
+  if (user && !user.isBlocked) {
     const code = crypto.randomInt(100000, 1000000).toString();
     await Otp.deleteMany({ email });
     await Otp.create({
@@ -87,7 +95,15 @@ async function forgotPassword(req, res) {
       codeHash: await bcrypt.hash(code, 10),
       expiresAt: new Date(Date.now() + OTP_TTL),
     });
-    await sendMail({ to: email, subject: "Ton code Solola", html: otpEmail(user.name, code) });
+
+    try {
+      await mailer.sendMail({ to: email, subject: "Ton code Solola", html: otpEmail(user.name, code) });
+    } catch (err) {
+      console.error("Envoi de l'OTP impossible :", err.message);
+      await Otp.deleteMany({ email });
+      throw new AppError("Impossible d'envoyer l'email pour le moment, réessaie plus tard", 502);
+    }
+
     if (process.env.NODE_ENV !== "production" && !process.env.SMTP_USER) {
       console.log(`OTP pour ${email} : ${code}`);
     }
@@ -97,24 +113,28 @@ async function forgotPassword(req, res) {
 }
 
 async function verifyOtp(req, res) {
-  const email = req.body.email?.toLowerCase().trim();
-  const code = String(req.body.code || "").trim();
-  if (!email || !code) throw new AppError("Email et code requis");
+  const email = text(req.body.email).toLowerCase();
+  const code = text(String(req.body.code ?? ""));
+  if (!email || !/^\d{6}$/.test(code)) throw new AppError("Email et code à 6 chiffres requis");
 
-  const otp = await Otp.findOne({ email, verified: false });
-  if (!otp || otp.expiresAt < new Date()) {
+  const otp = await Otp.findOneAndUpdate(
+    { email, verified: false, expiresAt: { $gt: new Date() }, attempts: { $lt: MAX_ATTEMPTS } },
+    { $inc: { attempts: 1 } },
+    { returnDocument: "after" }
+  );
+
+  if (!otp) {
+    const blocked = await Otp.exists({ email, verified: false, expiresAt: { $gt: new Date() } });
+    if (blocked) {
+      await Otp.deleteMany({ email });
+      throw new AppError("Trop de tentatives, demande un nouveau code", 429);
+    }
     throw new AppError("Code expiré, demande-en un nouveau");
   }
-  if (otp.attempts >= MAX_ATTEMPTS) {
-    await otp.deleteOne();
-    throw new AppError("Trop de tentatives, demande un nouveau code", 429);
-  }
 
-  const valid = await bcrypt.compare(code, otp.codeHash);
-  if (!valid) {
-    otp.attempts += 1;
-    await otp.save();
-    throw new AppError(`Code incorrect (${MAX_ATTEMPTS - otp.attempts} essai(s) restant(s))`);
+  if (!(await bcrypt.compare(code, otp.codeHash))) {
+    const left = MAX_ATTEMPTS - otp.attempts;
+    throw new AppError(left ? `Code incorrect (${left} essai(s) restant(s))` : "Code incorrect, demande un nouveau code");
   }
 
   const resetToken = crypto.randomBytes(32).toString("hex");
@@ -127,19 +147,21 @@ async function verifyOtp(req, res) {
 }
 
 async function resetPassword(req, res) {
-  const email = req.body.email?.toLowerCase().trim();
-  const { resetToken, password } = req.body;
+  const email = text(req.body.email).toLowerCase();
+  const resetToken = text(req.body.resetToken);
+  const password = typeof req.body.password === "string" ? req.body.password : "";
 
   if (!email || !resetToken || !password) throw new AppError("Données manquantes");
-  if (password.length < 6) throw new AppError("Le mot de passe doit faire au moins 6 caractères");
+  checkPassword(password);
 
-  const otp = await Otp.findOne({ email, verified: true, resetTokenHash: sha256(resetToken) });
+  const otp = await Otp.findOneAndDelete({ email, verified: true, resetTokenHash: sha256(resetToken) });
   if (!otp || otp.expiresAt < new Date()) {
     throw new AppError("Lien de réinitialisation expiré, recommence la procédure");
   }
 
   const user = await User.findOne({ email });
   if (!user) throw new AppError("Compte introuvable", 404);
+  if (user.isBlocked) throw new AppError("Ce compte est suspendu", 403);
 
   user.password = password;
   await user.save();
