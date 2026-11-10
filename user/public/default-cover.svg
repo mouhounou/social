@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 400" preserveAspectRatio="xMidYMid slice">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#F6EFE6"/>
+      <stop offset="1" stop-color="#EDE3D6"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="10" stdDeviation="12" flood-color="#8A6E50" flood-opacity="0.18"/>
+    </filter>
+  </defs>
+  <rect width="1200" height="400" fill="url(#bg)"/>
+
+  <g filter="url(#shadow)" transform="translate(470 40) rotate(-8)">
+    <rect width="330" height="250" rx="10" fill="#FBF8F3"/>
+    <rect x="163" width="4" height="250" fill="#E4DBCF"/>
+    <g stroke="#D9CFC2" stroke-width="2">
+      <path d="M195 60h105M195 88h105M195 116h80M195 144h105M195 172h60"/>
+    </g>
+    <path d="M40 170c25-60 70-95 95-80 20 12-5 55-35 65s-45-5-30-30 50-50 70-40" fill="none" stroke="#2F2F36" stroke-width="3" stroke-linecap="round"/>
+    <circle cx="70" cy="70" r="16" fill="none" stroke="#2F2F36" stroke-width="2.5"/>
+  </g>
+
+  <g filter="url(#shadow)" transform="translate(860 230) rotate(18)">
+    <rect width="160" height="14" rx="7" fill="#2F2F36"/>
+    <rect x="140" width="20" height="14" rx="4" fill="#C8A26B"/>
+  </g>
+
+  <g filter="url(#shadow)">
+    <circle cx="300" cy="110" r="78" fill="#FFFFFF"/>
+    <circle cx="300" cy="110" r="62" fill="#7A4A2A"/>
+    <circle cx="300" cy="110" r="62" fill="none" stroke="#A86F45" stroke-width="6" opacity="0.6"/>
+    <path d="M378 100h28a22 22 0 0 1 0 44h-28" fill="none" stroke="#FFFFFF" stroke-width="14"/>
+  </g>
+
+  <g fill="none" stroke="#8C6A45" stroke-width="3" stroke-linecap="round">
+    <path d="M1030 30c-40 60-80 110-150 150"/>
+    <path d="M1080 70c-60 40-110 90-170 130"/>
+  </g>
+  <g fill="#C79B66">
+    <ellipse cx="985" cy="85" rx="22" ry="9" transform="rotate(-40 985 85)"/>
+    <ellipse cx="950" cy="120" rx="20" ry="8" transform="rotate(30 950 120)"/>
+    <ellipse cx="1015" cy="120" rx="22" ry="9" transform="rotate(-20 1015 120)"/>
+    <ellipse cx="970" cy="160" rx="20" ry="8" transform="rotate(-35 970 160)"/>
+  </g>
+  <g fill="#B5835A">
+    <circle cx="1032" cy="30" r="10"/>
+    <circle cx="1082" cy="70" r="9"/>
+  </g>
+
+  <g filter="url(#shadow)" transform="translate(140 260) rotate(-12)">
+    <rect width="120" height="80" rx="6" fill="#2F2F36"/>
+    <rect x="10" y="10" width="100" height="60" rx="3" fill="#3E3E48"/>
+  </g>
+</svg>
