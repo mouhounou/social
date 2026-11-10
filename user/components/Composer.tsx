@@ -27,8 +27,8 @@ export default function Composer({ onCreated }: { onCreated: (post: Post) => voi
     return (
       <div className="card flex items-center gap-4 p-4">
         <Avatar name="Invité" size={40} />
-        <Link href="/login" className="input text-muted">
-          Connecte-toi pour partager quelque chose…
+        <Link href="/login" className="input block truncate text-muted">
+          Connecte-toi pour publier…
         </Link>
       </div>
     );
@@ -86,7 +86,7 @@ export default function Composer({ onCreated }: { onCreated: (post: Post) => voi
 
   return (
     <form onSubmit={submit} className="card p-4">
-      <div className="flex items-start gap-4">
+      <div className="flex items-start gap-3 sm:gap-4">
         <Avatar src={user.avatar} name={user.name} size={40} />
         <div className="flex-1 space-y-3">
           {open && (
@@ -114,7 +114,7 @@ export default function Composer({ onCreated }: { onCreated: (post: Post) => voi
       </div>
 
       {preview && (
-        <div className="relative mt-4 ml-14 overflow-hidden rounded-2xl">
+        <div className="relative mt-4 overflow-hidden rounded-2xl sm:ml-14">
           <Image src={preview} alt="" width={800} height={500} unoptimized className="max-h-72 w-full object-cover" />
           <button
             type="button"
@@ -129,20 +129,26 @@ export default function Composer({ onCreated }: { onCreated: (post: Post) => voi
         </div>
       )}
 
-      {error && <p className="mt-3 ml-14 text-sm text-red-500">{error}</p>}
+      {error && <p className="mt-3 text-sm text-red-500 sm:ml-14">{error}</p>}
 
-      <div className="mt-4 flex flex-wrap items-center gap-x-6 gap-y-3 pl-14 text-sm">
-        <button type="button" onClick={() => fileRef.current?.click()} className="flex items-center gap-2 hover:text-brand">
-          <ImageIcon className="size-5" /> Image
+      <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-3 text-sm sm:gap-x-6 sm:pl-14">
+        <button
+          type="button"
+          onClick={() => fileRef.current?.click()}
+          aria-label="Ajouter une image"
+          className="flex items-center gap-2 hover:text-brand"
+        >
+          <ImageIcon className="size-5" /> <span className="hidden sm:inline">Image</span>
         </button>
         <input ref={fileRef} type="file" accept="image/*" hidden onChange={pickFile} />
 
-        <label className="flex items-center gap-2">
-          <Tag className="size-5" />
+        <label className="flex min-w-0 items-center gap-2">
+          <Tag className="hidden size-5 shrink-0 min-[400px]:block" />
           <select
             value={category}
             onChange={(e) => setCategory(e.target.value)}
-            className="cursor-pointer bg-transparent outline-none"
+            aria-label="Catégorie"
+            className="max-w-28 min-w-0 cursor-pointer truncate bg-transparent outline-none sm:max-w-none"
           >
             {CATEGORIES.map((c) => (
               <option key={c}>{c}</option>
@@ -151,8 +157,9 @@ export default function Composer({ onCreated }: { onCreated: (post: Post) => voi
         </label>
 
         <label className="ml-auto flex items-center gap-2">
-          {visibility === "public" ? <Earth className="size-5" /> : <Users className="size-5" />}
+          {visibility === "public" ? <Earth className="size-5 shrink-0" /> : <Users className="size-5 shrink-0" />}
           <select
+            aria-label="Visibilité"
             value={visibility}
             onChange={(e) => setVisibility(e.target.value as "public" | "followers")}
             className="cursor-pointer bg-transparent outline-none"
@@ -163,7 +170,7 @@ export default function Composer({ onCreated }: { onCreated: (post: Post) => voi
         </label>
 
         {open && (
-          <div className="flex w-full justify-end gap-2">
+          <div className="flex w-full justify-end gap-2 border-t border-line pt-3 sm:border-0 sm:pt-0">
             <button type="button" onClick={reset} className="btn-ghost py-2">
               Annuler
             </button>

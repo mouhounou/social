@@ -78,7 +78,7 @@ export default function Profile({ username }: { username: string }) {
   return (
     <div className="mx-auto max-w-6xl space-y-6">
       <section className="card overflow-hidden">
-        <div className="relative h-44 bg-[#F3ECE3] sm:h-64">
+        <div className="relative h-36 bg-[#F3ECE3] sm:h-56 lg:h-64">
           <Image
             src={user.cover || DEFAULT_COVER}
             alt=""
@@ -93,10 +93,11 @@ export default function Profile({ username }: { username: string }) {
               <button
                 onClick={() => coverInput.current?.click()}
                 disabled={!!uploading}
-                className="absolute top-4 right-4 flex items-center gap-2 rounded-full bg-black/55 px-4 py-2 text-xs font-medium text-white backdrop-blur hover:bg-black/70"
+                aria-label={user.cover ? "Changer la couverture" : "Ajouter une couverture"}
+                className="absolute top-3 right-3 flex items-center gap-2 rounded-full bg-black/55 p-2.5 text-xs font-medium text-white backdrop-blur hover:bg-black/70 sm:top-4 sm:right-4 sm:px-4 sm:py-2"
               >
                 {uploading === "cover" ? <LoaderCircle className="size-4 animate-spin" /> : <Camera className="size-4" />}
-                {user.cover ? "Changer la couverture" : "Ajouter une couverture"}
+                <span className="hidden sm:inline">{user.cover ? "Changer la couverture" : "Ajouter une couverture"}</span>
               </button>
               <input
                 ref={coverInput}
@@ -114,16 +115,16 @@ export default function Profile({ username }: { username: string }) {
         </div>
 
         <div className="px-5 pb-6 sm:px-8">
-          <div className="flex flex-wrap items-end justify-between gap-4">
-            <div className="relative -mt-14 sm:-mt-16">
-              <Avatar src={user.avatar} name={user.name} size={128} className="ring-[5px] ring-white" />
+          <div className="flex items-end justify-between gap-3">
+            <div className="relative -mt-12 size-24 shrink-0 sm:-mt-16 sm:size-32">
+              <Avatar src={user.avatar} name={user.name} size={128} fluid className="ring-4 ring-white sm:ring-[5px]" />
               {isMe && (
                 <>
                   <button
                     onClick={() => avatarInput.current?.click()}
                     disabled={!!uploading}
                     aria-label="Changer la photo de profil"
-                    className="absolute right-1 bottom-1 flex size-9 items-center justify-center rounded-full bg-brand text-white ring-4 ring-white hover:bg-brand-dark"
+                    className="absolute right-0 bottom-0 flex size-8 items-center justify-center rounded-full bg-brand text-white ring-4 ring-white hover:bg-brand-dark sm:right-1 sm:bottom-1 sm:size-9"
                   >
                     {uploading === "avatar" ? <LoaderCircle className="size-4 animate-spin" /> : <Camera className="size-4" />}
                   </button>
@@ -142,10 +143,17 @@ export default function Profile({ username }: { username: string }) {
               )}
             </div>
 
-            <div className="flex gap-2 sm:pb-1">
+            <div className="flex gap-2 pb-1">
               {isMe ? (
-                <button onClick={() => setEditing(true)} className="btn-ghost">
-                  <UserPen className="size-4" /> Modifier le profil
+                <button
+                  onClick={() => setEditing(true)}
+                  aria-label="Modifier le profil"
+                  className="btn-ghost px-4 py-2.5 sm:px-5 sm:py-3"
+                >
+                  <UserPen className="size-4" />
+                  <span>
+                    Modifier<span className="hidden sm:inline"> le profil</span>
+                  </span>
                 </button>
               ) : (
                 <FollowButton

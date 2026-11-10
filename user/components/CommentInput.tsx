@@ -22,7 +22,7 @@ export default function CommentInput({ postId, onAdded }: Props) {
     return (
       <div className="flex items-center gap-3">
         <Avatar name="Invité" size={36} />
-        <Link href="/login" className="input py-2.5 text-muted">
+        <Link href="/login" className="input block truncate py-2.5 text-muted">
           Connecte-toi pour commenter
         </Link>
       </div>
