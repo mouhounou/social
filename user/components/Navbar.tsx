@@ -5,6 +5,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Bell, Bookmark, Compass, House, LogOut, Search, Settings } from "lucide-react";
 import { useAuth } from "@/lib/auth";
+import { useOutsideClick } from "@/lib/useOutsideClick";
 import { api } from "@/lib/api";
 import Avatar from "./Avatar";
 import Logo from "./Logo";
@@ -24,6 +25,7 @@ export default function Navbar() {
   const [search, setSearch] = useState(params.get("q") ?? "");
   const [unread, setUnread] = useState(0);
   const [menu, setMenu] = useState(false);
+  const menuRef = useOutsideClick<HTMLDivElement>(menu, () => setMenu(false));
 
   useEffect(() => {
     if (!user) return;
@@ -81,14 +83,13 @@ export default function Navbar() {
           {loading ? (
             <div className="size-9 animate-pulse rounded-full bg-field" />
           ) : user ? (
-            <div className="relative">
+            <div ref={menuRef} className="relative">
               <button onClick={() => setMenu((m) => !m)} className="flex items-center gap-3">
                 <Avatar src={user.avatar} name={user.name} size={36} />
                 <span className="hidden text-sm text-muted lg:inline">{user.name}</span>
               </button>
               {menu && (
                 <div
-                  onMouseLeave={() => setMenu(false)}
                   className="card absolute right-0 mt-3 w-52 overflow-hidden p-2 shadow-lg ring-1 ring-line"
                 >
                   <Link

@@ -31,7 +31,7 @@ export default function ProfileCard() {
       <div className="relative h-[70px] overflow-hidden rounded-2xl bg-gradient-to-r from-amber-100 via-orange-50 to-sky-100">
         {user.cover && <Image src={user.cover} alt="" fill className="object-cover" sizes="260px" />}
       </div>
-      <div className="-mt-9 flex flex-col items-center text-center">
+      <div className="relative -mt-9 flex flex-col items-center text-center">
         <Avatar src={user.avatar} name={user.name} size={80} className="ring-4 ring-white" />
         <p className="mt-3 font-semibold">{user.name}</p>
         <p className="text-sm text-muted">@{user.username}</p>

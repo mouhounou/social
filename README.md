@@ -10,6 +10,14 @@ admin/     Back-office (à venir)
 
 ## Lancer en local
 
+### MongoDB
+
+Il faut un MongoDB local (ou une URI Atlas dans `MONGO_URI`). Le plus simple :
+
+```bash
+docker run -d --name solola-mongo -p 27017:27017 mongo:8
+```
+
 ### API
 
 ```bash
