@@ -3,12 +3,13 @@
 import { useCallback, useEffect, useState } from "react";
 import { ChevronDown, X } from "lucide-react";
 import Link from "next/link";
-import { useAuth } from "@/lib/auth";
-import { api, query } from "@/lib/api";
-import type { Post, PostPage } from "@/lib/types";
-import Composer from "./Composer";
-import PostCard from "./PostCard";
-import Spinner from "./Spinner";
+import { useAuth } from "@/hooks/useAuth";
+import { api } from "@/lib/api";
+import { query } from "@/utils/query";
+import type { Post, PostPage } from "@/types";
+import Composer from "@/components/post/Composer";
+import PostCard from "@/components/post/PostCard";
+import Spinner from "@/components/ui/Spinner";
 
 export type FeedFilters = {
   q?: string;

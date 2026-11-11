@@ -53,6 +53,28 @@ npm install
 npm run dev            # http://localhost:3000
 ```
 
+L'URL du backend se règle dans `user/.env.local` (`API_URL=http://localhost:5000`). Le navigateur appelle toujours `/api/...` sur le front, et Next.js redirige ces appels vers `API_URL` (voir `next.config.ts`). Le cookie de session reste ainsi sur le domaine du front.
+
+Arborescence du front :
+
+```
+user/
+  app/          routes (App Router) et layouts : (auth) et (main)
+  components/
+    layout/     Navbar, Logo, Shortcuts
+    ui/         Avatar, Modal, Spinner, RichText
+    auth/       AuthField, RequireAuth, GuestOnly
+    post/       Feed, PostCard, PostForm, Composer, CommentInput, CategoryChips
+    profile/    ProfileCard, ProfileForm, FollowButton, SuggestionsCard...
+    notification/ ActivityCard
+    providers/  AuthInitializer (charge la session au démarrage)
+  store/        stores zustand (authStore)
+  hooks/        useAuth, useOutsideClick
+  lib/          axios.ts (instance + erreurs), api.ts (helper), constants.ts
+  utils/        time, query, recovery
+  types/        types partagés (User, Post, Comment...)
+```
+
 Tests de bout en bout (navigateur), avec l'API et le front lancés :
 
 ```bash

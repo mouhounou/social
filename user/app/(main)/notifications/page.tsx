@@ -1,11 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { NotificationItem } from "@/components/ActivityCard";
-import RequireAuth from "@/components/RequireAuth";
-import Spinner from "@/components/Spinner";
+import { NotificationItem } from "@/components/notification/ActivityCard";
+import RequireAuth from "@/components/auth/RequireAuth";
+import Spinner from "@/components/ui/Spinner";
 import { api } from "@/lib/api";
-import type { Notification } from "@/lib/types";
+import type { Notification } from "@/types";
 
 export default function NotificationsPage() {
   return (

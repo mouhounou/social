@@ -4,9 +4,9 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { ArrowLeft, Mail } from "lucide-react";
-import AuthField from "@/components/AuthField";
+import AuthField from "@/components/auth/AuthField";
 import { api } from "@/lib/api";
-import { setRecovery } from "@/lib/recovery";
+import { setRecovery } from "@/utils/recovery";
 
 export default function ForgotPasswordPage() {
   const router = useRouter();

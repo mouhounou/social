@@ -3,10 +3,10 @@
 import Link from "next/link";
 import { useState } from "react";
 import { SendHorizontal } from "lucide-react";
-import { useAuth } from "@/lib/auth";
+import { useAuth } from "@/hooks/useAuth";
 import { api } from "@/lib/api";
-import type { Comment } from "@/lib/types";
-import Avatar from "./Avatar";
+import type { Comment } from "@/types";
+import Avatar from "@/components/ui/Avatar";
 
 type Props = {
   postId: string;

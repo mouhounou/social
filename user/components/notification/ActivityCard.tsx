@@ -4,12 +4,12 @@ import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Heart, MessageCircle } from "lucide-react";
-import { useAuth } from "@/lib/auth";
+import { useAuth } from "@/hooks/useAuth";
 import { api } from "@/lib/api";
-import { shortAgo } from "@/lib/time";
-import type { Notification } from "@/lib/types";
-import Avatar from "./Avatar";
-import FollowButton from "./FollowButton";
+import { shortAgo } from "@/utils/time";
+import type { Notification } from "@/types";
+import Avatar from "@/components/ui/Avatar";
+import FollowButton from "@/components/profile/FollowButton";
 
 const verbs = {
   like: "a aimé ta publication.",

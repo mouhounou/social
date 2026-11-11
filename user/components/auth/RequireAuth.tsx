@@ -3,9 +3,9 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect } from "react";
-import { useAuth } from "@/lib/auth";
-import type { Role, User } from "@/lib/types";
-import Spinner from "./Spinner";
+import { useAuth } from "@/hooks/useAuth";
+import type { Role, User } from "@/types";
+import Spinner from "@/components/ui/Spinner";
 
 type Props = {
   roles?: Role[];

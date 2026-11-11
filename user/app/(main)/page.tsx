@@ -1,10 +1,10 @@
 import { Suspense } from "react";
-import ActivityCard from "@/components/ActivityCard";
-import CategoryChips from "@/components/CategoryChips";
-import Feed from "@/components/Feed";
-import ProfileCard from "@/components/ProfileCard";
-import Shortcuts from "@/components/Shortcuts";
-import SuggestionsCard from "@/components/SuggestionsCard";
+import ActivityCard from "@/components/notification/ActivityCard";
+import CategoryChips from "@/components/post/CategoryChips";
+import Feed from "@/components/post/Feed";
+import ProfileCard from "@/components/profile/ProfileCard";
+import Shortcuts from "@/components/layout/Shortcuts";
+import SuggestionsCard from "@/components/profile/SuggestionsCard";
 
 function pick(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value;

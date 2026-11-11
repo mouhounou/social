@@ -3,14 +3,14 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { ArrowLeft, Trash2 } from "lucide-react";
-import Avatar from "@/components/Avatar";
-import CommentInput from "@/components/CommentInput";
-import PostCard from "@/components/PostCard";
-import Spinner from "@/components/Spinner";
-import { useAuth } from "@/lib/auth";
+import Avatar from "@/components/ui/Avatar";
+import CommentInput from "@/components/post/CommentInput";
+import PostCard from "@/components/post/PostCard";
+import Spinner from "@/components/ui/Spinner";
+import { useAuth } from "@/hooks/useAuth";
 import { api } from "@/lib/api";
-import { timeAgo } from "@/lib/time";
-import type { Comment, Post } from "@/lib/types";
+import { timeAgo } from "@/utils/time";
+import type { Comment, Post } from "@/types";
 
 export default function PostDetail({ id }: { id: string }) {
   const { user, loading: authLoading } = useAuth();

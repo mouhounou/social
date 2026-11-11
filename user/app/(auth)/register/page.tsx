@@ -4,10 +4,10 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { AtSign, BookOpen, Lock, Mail, PenLine, User as UserIcon } from "lucide-react";
-import AuthField from "@/components/AuthField";
-import { useAuth } from "@/lib/auth";
+import AuthField from "@/components/auth/AuthField";
+import { useAuth } from "@/hooks/useAuth";
 import { api } from "@/lib/api";
-import type { Role, User } from "@/lib/types";
+import type { Role, User } from "@/types";
 
 const roles = [
   { value: "reader", label: "Lecteur", hint: "Je lis, j'aime et je commente", icon: BookOpen },
