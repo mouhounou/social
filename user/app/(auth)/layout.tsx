@@ -1,3 +1,4 @@
+import { Heart, MessageCircle } from "lucide-react";
 import GuestOnly from "@/components/auth/GuestOnly";
 import Logo from "@/components/layout/Logo";
 
@@ -11,20 +12,56 @@ function Bubble({ className }: { className: string }) {
 
 function Visual() {
   return (
-    <div className="relative hidden overflow-hidden rounded-[28px] bg-gradient-to-br from-slate-100 via-slate-200 to-slate-300 lg:block">
-      <span className="absolute -top-10 -left-12 size-64 rounded-full bg-[radial-gradient(circle_at_30%_30%,#7dd3fc,#1e8fff_55%,#1d4ed8)] shadow-2xl" />
-      <span className="absolute top-16 right-[-3rem] size-56 rounded-full bg-[radial-gradient(circle_at_30%_30%,#c4b5fd,#818cf8_50%,#4f46e5)] shadow-2xl" />
-      <span className="absolute bottom-[-4rem] left-10 size-60 rounded-full bg-[radial-gradient(circle_at_30%_30%,#fde68a,#fbbf24_55%,#d97706)] shadow-2xl" />
-      <span className="absolute right-12 bottom-24 size-28 rotate-12 rounded-[32px] bg-[radial-gradient(circle_at_30%_30%,#93c5fd,#3b82f6_60%,#1e40af)] shadow-xl" />
+    <div className="relative hidden overflow-hidden rounded-[28px] bg-gradient-to-br from-brand via-blue-500 to-indigo-600 p-10 text-white lg:flex lg:flex-col">
+      <span className="absolute -right-24 -bottom-24 size-80 rounded-full bg-white/10" />
+      <span className="absolute -top-16 -left-16 size-56 rounded-full bg-white/10" />
+      <Bubble className="top-24 right-10 size-16" />
+      <Bubble className="bottom-10 left-8 size-12" />
 
-      <Bubble className="top-1/3 left-1/3 size-44" />
-      <Bubble className="top-10 left-1/2 size-20" />
-      <Bubble className="bottom-12 left-1/2 size-24" />
-      <Bubble className="top-2/3 left-6 size-14" />
+      <div className="relative">
+        <h2 className="max-w-sm text-3xl leading-tight font-semibold">Partage tes idées. Inspire ta communauté.</h2>
+        <p className="mt-3 max-w-xs text-sm text-white/80">
+          Publie tes créations, échange en commentaires et suis les gens qui comptent pour toi.
+        </p>
+      </div>
 
-      <div className="absolute inset-x-6 bottom-6 rounded-2xl border border-white/50 bg-white/30 p-4 text-ink backdrop-blur-xl">
-        <p className="text-sm font-semibold">Partage tes idées. Inspire ta communauté.</p>
-        <p className="mt-1 text-xs text-ink/70">Publie, commente et suis les gens qui comptent pour toi.</p>
+      <div className="relative mt-auto mb-6 h-80">
+        <div className="absolute top-14 left-0 w-72 rotate-[-4deg] rounded-[20px] bg-white p-4 text-ink shadow-2xl">
+          <div className="flex items-center gap-3">
+            <span className="size-9 rounded-full bg-amber-200" />
+            <div>
+              <p className="text-sm font-semibold">Briansky</p>
+              <p className="text-[11px] text-muted">il y a 12 minutes</p>
+            </div>
+          </div>
+          <p className="mt-3 text-sm">
+            Mon dernier mural est fini ! <span className="text-brand">#art #streetart</span>
+          </p>
+          <div className="mt-3 h-28 rounded-2xl bg-gradient-to-br from-slate-200 via-slate-400 to-slate-700" />
+          <div className="mt-3 flex gap-5 text-xs">
+            <span className="flex items-center gap-1">
+              <Heart className="size-4 fill-red-500 text-red-500" /> 320k
+            </span>
+            <span className="flex items-center gap-1">
+              <MessageCircle className="size-4" /> 120
+            </span>
+          </div>
+        </div>
+
+        <div className="absolute top-0 right-0 w-56 rotate-[6deg] rounded-[20px] bg-white/95 p-4 text-ink shadow-xl backdrop-blur-xl">
+          <div className="flex items-center gap-2 text-xs">
+            <span className="size-7 shrink-0 rounded-full bg-sky-200" />
+            <span>
+              <b>Deraa</b> te suit maintenant
+            </span>
+          </div>
+          <div className="mt-2 flex items-center gap-2 text-xs">
+            <span className="size-7 shrink-0 rounded-full bg-rose-200" />
+            <span>
+              <b>Ediwp</b> a aimé ta photo
+            </span>
+          </div>
+        </div>
       </div>
     </div>
   );
