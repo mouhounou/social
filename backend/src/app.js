@@ -1,6 +1,7 @@
 const express = require("express");
 const cors = require("cors");
 const cookieParser = require("cookie-parser");
+const swaggerUi = require("swagger-ui-express");
 
 const authRoutes = require("./routes/auth.routes");
 const postRoutes = require("./routes/post.routes");
@@ -8,6 +9,7 @@ const commentRoutes = require("./routes/comment.routes");
 const userRoutes = require("./routes/user.routes");
 const notificationRoutes = require("./routes/notification.routes");
 const { notFound, errorHandler } = require("./middlewares/error");
+const openapi = require("./docs/openapi");
 
 const app = express();
 
@@ -33,6 +35,9 @@ app.use("/api/posts", postRoutes);
 app.use("/api/comments", commentRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/notifications", notificationRoutes);
+
+app.get("/docs.json", (req, res) => res.json(openapi));
+app.use("/docs", swaggerUi.serve, swaggerUi.setup(openapi, { customSiteTitle: "API Solola" }));
 
 app.use(notFound);
 app.use(errorHandler);

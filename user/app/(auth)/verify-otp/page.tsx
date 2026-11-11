@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { ArrowLeft } from "lucide-react";
 import { api } from "@/lib/api";
 import { getRecovery, setRecovery } from "@/lib/recovery";
@@ -10,10 +10,14 @@ import { getRecovery, setRecovery } from "@/lib/recovery";
 const LENGTH = 6;
 const RESEND_DELAY = 60;
 
+const noSubscribe = () => () => {};
+const recoveryEmail = () => getRecovery()?.email ?? "";
+const noEmailOnServer = () => "";
+
 export default function VerifyOtpPage() {
   const router = useRouter();
   const inputs = useRef<(HTMLInputElement | null)[]>([]);
-  const [email, setEmail] = useState("");
+  const email = useSyncExternalStore(noSubscribe, recoveryEmail, noEmailOnServer);
   const [digits, setDigits] = useState<string[]>(Array(LENGTH).fill(""));
   const [error, setError] = useState("");
   const [info, setInfo] = useState("");
@@ -21,13 +25,10 @@ export default function VerifyOtpPage() {
   const [cooldown, setCooldown] = useState(RESEND_DELAY);
 
   useEffect(() => {
-    const data = getRecovery();
-    if (!data?.email) {
+    if (!getRecovery()?.email) {
       router.replace("/forgot-password");
       return;
     }
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setEmail(data.email);
     inputs.current[0]?.focus();
   }, [router]);
 
