@@ -78,6 +78,7 @@ function me(req, res) {
 }
 
 function session(req, res) {
+  if (!req.user && req.cookies?.token) clearAuthCookie(res);
   res.json({ user: req.user ? req.user.toPublic() : null });
 }
 

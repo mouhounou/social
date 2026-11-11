@@ -19,12 +19,18 @@ type Props = {
   full?: boolean;
   onDeleted?: (id: string) => void;
   onComment?: () => void;
+  commentsCount?: number;
 };
 
-export default function PostCard({ post: initial, full = false, onDeleted, onComment }: Props) {
+export default function PostCard({ post: initial, full = false, onDeleted, onComment, commentsCount }: Props) {
   const { user } = useAuth();
   const router = useRouter();
   const [post, setPost] = useState(initial);
+  const [source, setSource] = useState(initial);
+  if (initial !== source) {
+    setSource(initial);
+    setPost(initial);
+  }
   const [menu, setMenu] = useState(false);
   const menuRef = useOutsideClick<HTMLDivElement>(menu, () => setMenu(false));
   const [copied, setCopied] = useState(false);
@@ -66,9 +72,13 @@ export default function PostCard({ post: initial, full = false, onDeleted, onCom
       navigator.share({ title: post.title, url }).catch(() => {});
       return;
     }
-    await navigator.clipboard.writeText(url);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1500);
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      window.prompt("Copie ce lien :", url);
+    }
   }
 
   return (
@@ -152,7 +162,7 @@ export default function PostCard({ post: initial, full = false, onDeleted, onCom
         </button>
         <Link href={`/posts/${post._id}#comments`} className="flex items-center gap-1.5">
           <MessageCircle className="size-5" />
-          {compact(post.commentsCount)}
+          {compact(commentsCount ?? post.commentsCount)}
         </Link>
         <button onClick={() => toggle("save")} className="flex items-center gap-1.5">
           <Bookmark className={`size-5 ${post.saved ? "fill-brand text-brand" : ""}`} />

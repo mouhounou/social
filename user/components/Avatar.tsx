@@ -7,9 +7,10 @@ type Props = {
   size?: number;
   className?: string;
   fluid?: boolean;
+  preload?: boolean;
 };
 
-export default function Avatar({ src, name = "", size = 40, className = "", fluid = false }: Props) {
+export default function Avatar({ src, name = "", size = 40, className = "", fluid = false, preload = false }: Props) {
   return (
     <Image
       src={src || DEFAULT_AVATAR}
@@ -17,6 +18,7 @@ export default function Avatar({ src, name = "", size = 40, className = "", flui
       width={size}
       height={size}
       unoptimized={!src || src.startsWith("blob:")}
+      preload={preload}
       style={fluid ? undefined : { width: size, height: size }}
       className={`shrink-0 rounded-full bg-[#FCD877] object-cover ${fluid ? "size-full" : ""} ${className}`}
     />
