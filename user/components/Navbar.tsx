@@ -38,7 +38,13 @@ export default function Navbar() {
   const pathname = usePathname();
   const router = useRouter();
   const params = useSearchParams();
-  const [search, setSearch] = useState(params.get("q") ?? "");
+  const currentQuery = params.get("q") ?? "";
+  const [search, setSearch] = useState(currentQuery);
+  const [syncedQuery, setSyncedQuery] = useState(currentQuery);
+  if (currentQuery !== syncedQuery) {
+    setSyncedQuery(currentQuery);
+    setSearch(currentQuery);
+  }
   const [searchOpen, setSearchOpen] = useState(false);
   const [unread, setUnread] = useState(0);
   const [menu, setMenu] = useState(false);
@@ -50,6 +56,12 @@ export default function Navbar() {
       .then((d) => setUnread(d.unread))
       .catch(() => {});
   }, [user, pathname]);
+
+  useEffect(() => {
+    const clear = () => setUnread(0);
+    window.addEventListener("solola:notifications-read", clear);
+    return () => window.removeEventListener("solola:notifications-read", clear);
+  }, []);
 
   function onSearch(e: React.FormEvent) {
     e.preventDefault();
@@ -114,7 +126,7 @@ export default function Navbar() {
               {searchOpen ? <X className="size-5" /> : <Search className="size-5" />}
             </button>
 
-            {loading ? (
+            {loading && !user ? (
               <div className="size-9 animate-pulse rounded-full bg-field" />
             ) : user ? (
               <div ref={menuRef} className="relative">

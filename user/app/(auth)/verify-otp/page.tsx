@@ -37,34 +37,46 @@ export default function VerifyOtpPage() {
     return () => clearTimeout(t);
   }, [cooldown]);
 
-  function fill(index: number, value: string) {
-    const clean = value.replace(/\D/g, "");
-    if (!clean && value) return;
+  function update(next: string[], focus: number) {
+    setDigits(next);
+    inputs.current[Math.min(focus, LENGTH - 1)]?.focus();
+    if (next.every(Boolean)) submit(next.join(""));
+  }
 
-    const next = [...digits];
-    if (clean.length > 1) {
-      clean
-        .slice(0, LENGTH - index)
-        .split("")
-        .forEach((d, i) => (next[index + i] = d));
-      setDigits(next);
-      inputs.current[Math.min(index + clean.length, LENGTH - 1)]?.focus();
+  function fill(index: number, value: string) {
+    let clean = value.replace(/\D/g, "");
+    const current = digits[index];
+    if (current && clean.length === 2 && clean.includes(current)) {
+      clean = clean[0] === current ? clean[1] : clean[0];
+    }
+    if (!clean) {
+      if (!value) update(Object.assign([...digits], { [index]: "" }), index);
       return;
     }
+    if (clean.length >= LENGTH) return paste(clean);
 
-    next[index] = clean;
-    setDigits(next);
-    if (clean && index < LENGTH - 1) inputs.current[index + 1]?.focus();
+    const next = [...digits];
+    clean
+      .slice(0, LENGTH - index)
+      .split("")
+      .forEach((d, i) => (next[index + i] = d));
+    update(next, index + clean.length);
+  }
+
+  function paste(text: string) {
+    const clean = text.replace(/\D/g, "").slice(0, LENGTH);
+    if (!clean) return;
+    const next = Array.from({ length: LENGTH }, (_, i) => clean[i] ?? "");
+    update(next, clean.length);
   }
 
   function onKeyDown(index: number, e: React.KeyboardEvent) {
     if (e.key === "Backspace" && !digits[index] && index > 0) inputs.current[index - 1]?.focus();
   }
 
-  async function submit(e?: React.FormEvent) {
-    e?.preventDefault();
-    const code = digits.join("");
-    if (code.length < LENGTH) return;
+  async function submit(value?: string) {
+    const code = value ?? digits.join("");
+    if (code.length < LENGTH || loading) return;
 
     setError("");
     setLoading(true);
@@ -105,7 +117,13 @@ export default function VerifyOtpPage() {
         On a envoyé un code à <span className="font-medium text-ink">{email}</span>. Il est valable 10 minutes.
       </p>
 
-      <form onSubmit={submit} className="mt-8 space-y-6">
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          submit();
+        }}
+        className="mt-8 space-y-6"
+      >
         <div className="flex justify-between gap-2">
           {digits.map((d, i) => (
             <input
@@ -116,9 +134,15 @@ export default function VerifyOtpPage() {
               value={d}
               onChange={(e) => fill(i, e.target.value)}
               onKeyDown={(e) => onKeyDown(i, e)}
+              onPaste={(e) => {
+                e.preventDefault();
+                paste(e.clipboardData.getData("text"));
+              }}
+              onFocus={(e) => e.target.select()}
+              aria-label={`Chiffre ${i + 1}`}
               inputMode="numeric"
               autoComplete={i === 0 ? "one-time-code" : "off"}
-              maxLength={i === 0 ? LENGTH : 1}
+              maxLength={LENGTH}
               className="size-12 rounded-xl bg-field text-center text-xl font-semibold outline-none focus:ring-2 focus:ring-brand sm:size-14"
             />
           ))}

@@ -121,6 +121,7 @@ export default function PostForm({ post }: { post?: Post }) {
         hidden
         onChange={(e) => {
           const f = e.target.files?.[0];
+          e.target.value = "";
           if (!f) return;
           setFile(f);
           setPreview(URL.createObjectURL(f));

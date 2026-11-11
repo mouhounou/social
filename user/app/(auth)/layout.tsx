@@ -1,4 +1,5 @@
 import { Heart, MessageCircle } from "lucide-react";
+import GuestOnly from "@/components/GuestOnly";
 import Logo from "@/components/Logo";
 
 export default function AuthLayout({ children }: LayoutProps<"/">) {
@@ -60,6 +61,7 @@ export default function AuthLayout({ children }: LayoutProps<"/">) {
 
       <main className="flex items-center justify-center bg-white px-6 py-12">
         <div className="w-full max-w-md">
+          <GuestOnly />
           <Logo className="mb-10 block lg:hidden" />
           {children}
         </div>

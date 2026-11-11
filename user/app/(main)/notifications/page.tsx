@@ -2,11 +2,20 @@
 
 import { useEffect, useState } from "react";
 import { NotificationItem } from "@/components/ActivityCard";
+import RequireAuth from "@/components/RequireAuth";
 import Spinner from "@/components/Spinner";
 import { api } from "@/lib/api";
 import type { Notification } from "@/lib/types";
 
 export default function NotificationsPage() {
+  return (
+    <RequireAuth>
+      <NotificationList />
+    </RequireAuth>
+  );
+}
+
+function NotificationList() {
   const [items, setItems] = useState<Notification[] | null>(null);
 
   useEffect(() => {
@@ -15,6 +24,7 @@ export default function NotificationsPage() {
         setItems(d.notifications);
         return api("/notifications/read", { method: "PATCH" });
       })
+      .then(() => window.dispatchEvent(new Event("solola:notifications-read")))
       .catch(() => setItems([]));
   }, []);
 
@@ -30,9 +40,7 @@ export default function NotificationsPage() {
       ) : (
         <ul className="space-y-5">
           {items.map((n) => (
-            <div key={n._id} className={n.read ? "" : "rounded-xl bg-brand-soft/60 p-2"}>
-              <NotificationItem n={n} />
-            </div>
+            <NotificationItem key={n._id} n={n} className={n.read ? "" : "rounded-xl bg-brand-soft/60 p-2"} />
           ))}
         </ul>
       )}

@@ -2,12 +2,21 @@
 
 import { useEffect, useState } from "react";
 import PostForm from "@/components/PostForm";
+import RequireAuth from "@/components/RequireAuth";
 import Spinner from "@/components/Spinner";
 import { useAuth } from "@/lib/auth";
 import { api } from "@/lib/api";
 import type { Post } from "@/lib/types";
 
 export default function EditPost({ id }: { id: string }) {
+  return (
+    <RequireAuth>
+      <EditPostForm id={id} />
+    </RequireAuth>
+  );
+}
+
+function EditPostForm({ id }: { id: string }) {
   const { user, loading } = useAuth();
   const [post, setPost] = useState<Post | null>(null);
   const [error, setError] = useState("");

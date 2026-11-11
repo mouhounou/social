@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test:e2e": "node --test --test-concurrency=1 \"e2e/**/*.test.mjs\""
   },
   "dependencies": {
     "lucide-react": "^1.71.0",
@@ -21,6 +22,7 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.4.6",
+    "playwright": "1.63.0",
     "tailwindcss": "4.3.3",
     "typescript": "^5"
   }

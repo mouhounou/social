@@ -83,7 +83,7 @@ export default function Profile({ username }: { username: string }) {
             src={user.cover || DEFAULT_COVER}
             alt=""
             fill
-            priority
+            preload
             unoptimized={!user.cover || user.cover.startsWith("blob:")}
             className="object-cover"
             sizes="(min-width: 1152px) 1152px, 100vw"
@@ -117,7 +117,7 @@ export default function Profile({ username }: { username: string }) {
         <div className="px-5 pb-6 sm:px-8">
           <div className="flex items-end justify-between gap-3">
             <div className="relative -mt-12 size-24 shrink-0 sm:-mt-16 sm:size-32">
-              <Avatar src={user.avatar} name={user.name} size={128} fluid className="ring-4 ring-white sm:ring-[5px]" />
+              <Avatar src={user.avatar} name={user.name} size={128} fluid preload className="ring-4 ring-white sm:ring-[5px]" />
               {isMe && (
                 <>
                   <button

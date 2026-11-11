@@ -17,6 +17,7 @@ export default function CommentInput({ postId, onAdded }: Props) {
   const { user } = useAuth();
   const [content, setContent] = useState("");
   const [sending, setSending] = useState(false);
+  const [error, setError] = useState("");
 
   if (!user) {
     return (
@@ -35,6 +36,7 @@ export default function CommentInput({ postId, onAdded }: Props) {
     if (!text) return;
 
     setSending(true);
+    setError("");
     try {
       const { comment } = await api<{ comment: Comment }>(`/posts/${postId}/comments`, {
         method: "POST",
@@ -43,14 +45,15 @@ export default function CommentInput({ postId, onAdded }: Props) {
       onAdded(comment);
       setContent("");
     } catch (err) {
-      alert((err as Error).message);
+      setError((err as Error).message);
     } finally {
       setSending(false);
     }
   }
 
   return (
-    <form onSubmit={submit} className="flex items-center gap-3">
+    <form onSubmit={submit} className="space-y-1.5">
+      <div className="flex items-center gap-3">
       <Avatar src={user.avatar} name={user.name} size={36} />
       <div className="relative flex-1">
         <input
@@ -66,6 +69,8 @@ export default function CommentInput({ postId, onAdded }: Props) {
           </button>
         )}
       </div>
+      </div>
+      {error && <p className="pl-12 text-xs text-red-500">{error}</p>}
     </form>
   );
 }

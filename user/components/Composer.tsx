@@ -45,6 +45,7 @@ export default function Composer({ onCreated }: { onCreated: (post: Post) => voi
 
   function pickFile(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0];
+    e.target.value = "";
     if (!f) return;
     setFile(f);
     setPreview(URL.createObjectURL(f));
