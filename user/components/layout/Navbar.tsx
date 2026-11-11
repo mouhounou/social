@@ -86,96 +86,106 @@ export default function Navbar() {
   return (
     <>
       <header className="sticky top-0 z-30 border-b border-line bg-white">
-        <div className="mx-auto flex h-16 max-w-7xl items-center gap-3 px-4 md:h-[72px] lg:px-6">
-          <Logo />
+        {/* Desktop : logo à gauche, recherche au centre, navigation et compte à droite.
+            Les colonnes latérales ont la même largeur pour que la recherche soit vraiment centrée. */}
+        <div className="mx-auto flex h-16 max-w-7xl items-center gap-3 px-4 md:grid md:h-[72px] md:grid-cols-[1fr_minmax(0,15rem)_1fr] md:gap-4 lg:grid-cols-[1fr_minmax(0,26rem)_1fr] lg:px-6">
+          <div className="md:justify-self-start">
+            <Logo />
+          </div>
 
-          <form onSubmit={onSearch} className="relative hidden w-full max-w-60 md:block">
+          <form onSubmit={onSearch} className="relative hidden w-full md:block">
             {searchInput}
           </form>
 
-          <nav className="mx-auto hidden items-center gap-2 md:flex lg:gap-3">
-            {links
-              .filter((l) => !l.auth || user)
-              .map(({ href, icon: Icon, label }) => {
-                const active = isActive(pathname, href);
-                return (
-                  <Link
-                    key={href}
-                    href={href}
-                    title={label}
-                    className={`relative flex items-center gap-2 rounded-full px-3 py-2 text-sm transition ${
-                      active ? "bg-brand-soft font-medium text-brand" : "text-muted hover:bg-field"
-                    }`}
+          <div className="ml-auto flex items-center gap-1 md:ml-0 md:justify-self-end md:gap-2 lg:gap-4">
+            <nav className="hidden items-center gap-1 md:flex lg:gap-2">
+              {links
+                .filter((l) => !l.auth || user)
+                .map(({ href, icon: Icon, label }) => {
+                  const active = isActive(pathname, href);
+                  return (
+                    <Link
+                      key={href}
+                      href={href}
+                      title={label}
+                      className={`relative flex items-center gap-2 rounded-full px-3 py-2 text-sm transition ${
+                        active ? "bg-brand-soft font-medium text-brand" : "text-muted hover:bg-field"
+                      }`}
+                    >
+                      <Icon className="size-5" />
+                      {active && <span className="hidden xl:inline">{label}</span>}
+                      {href === "/notifications" && unread > 0 && (
+                        <span className="absolute top-1.5 right-2.5 size-2 rounded-full bg-red-500" />
+                      )}
+                    </Link>
+                  );
+                })}
+            </nav>
+
+            <div className="flex items-center gap-1 md:gap-3">
+              <button
+                onClick={() => setSearchOpen((o) => !o)}
+                aria-label="Rechercher"
+                className="rounded-full p-2 text-muted hover:bg-field md:hidden"
+              >
+                {searchOpen ? <X className="size-5" /> : <Search className="size-5" />}
+              </button>
+
+              {loading && !user ? (
+                <div className="size-9 animate-pulse rounded-full bg-field" />
+              ) : user ? (
+                <div ref={menuRef} className="relative">
+                  <button
+                    onClick={() => setMenu((m) => !m)}
+                    className="flex rounded-full ring-brand/30 transition hover:ring-4"
+                    aria-label="Mon compte"
+                    title={user.name}
                   >
-                    <Icon className="size-5" />
-                    {active && <span className="hidden lg:inline">{label}</span>}
-                    {href === "/notifications" && unread > 0 && (
-                      <span className="absolute top-1.5 right-2.5 size-2 rounded-full bg-red-500" />
-                    )}
+                    <Avatar src={user.avatar} name={user.name} size={36} />
+                  </button>
+                  {menu && (
+                    <div className="card absolute right-0 mt-3 w-52 overflow-hidden p-2 shadow-lg ring-1 ring-line">
+                      <Link
+                        href={`/u/${user.username}`}
+                        onClick={() => setMenu(false)}
+                        className="block rounded-xl px-3 py-2 text-sm hover:bg-field"
+                      >
+                        Mon profil
+                      </Link>
+                      <Link
+                        href="/saved"
+                        onClick={() => setMenu(false)}
+                        className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm hover:bg-field md:hidden"
+                      >
+                        <Bookmark className="size-4" /> Enregistrés
+                      </Link>
+                      <Link
+                        href="/settings"
+                        onClick={() => setMenu(false)}
+                        className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm hover:bg-field"
+                      >
+                        <Settings className="size-4" /> Paramètres
+                      </Link>
+                      <button
+                        onClick={logout}
+                        className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm text-red-500 hover:bg-red-50"
+                      >
+                        <LogOut className="size-4" /> Déconnexion
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <>
+                  <Link href="/login" className="hidden text-sm font-medium text-brand sm:inline">
+                    Connexion
                   </Link>
-                );
-              })}
-          </nav>
-
-          <div className="ml-auto flex items-center gap-1 md:ml-0 md:gap-3">
-            <button
-              onClick={() => setSearchOpen((o) => !o)}
-              aria-label="Rechercher"
-              className="rounded-full p-2 text-muted hover:bg-field md:hidden"
-            >
-              {searchOpen ? <X className="size-5" /> : <Search className="size-5" />}
-            </button>
-
-            {loading && !user ? (
-              <div className="size-9 animate-pulse rounded-full bg-field" />
-            ) : user ? (
-              <div ref={menuRef} className="relative">
-                <button onClick={() => setMenu((m) => !m)} className="flex items-center gap-3" aria-label="Mon compte">
-                  <Avatar src={user.avatar} name={user.name} size={36} />
-                  <span className="hidden text-sm text-muted lg:inline">{user.name}</span>
-                </button>
-                {menu && (
-                  <div className="card absolute right-0 mt-3 w-52 overflow-hidden p-2 shadow-lg ring-1 ring-line">
-                    <Link
-                      href={`/u/${user.username}`}
-                      onClick={() => setMenu(false)}
-                      className="block rounded-xl px-3 py-2 text-sm hover:bg-field"
-                    >
-                      Mon profil
-                    </Link>
-                    <Link
-                      href="/saved"
-                      onClick={() => setMenu(false)}
-                      className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm hover:bg-field md:hidden"
-                    >
-                      <Bookmark className="size-4" /> Enregistrés
-                    </Link>
-                    <Link
-                      href="/settings"
-                      onClick={() => setMenu(false)}
-                      className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm hover:bg-field"
-                    >
-                      <Settings className="size-4" /> Paramètres
-                    </Link>
-                    <button
-                      onClick={logout}
-                      className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm text-red-500 hover:bg-red-50"
-                    >
-                      <LogOut className="size-4" /> Déconnexion
-                    </button>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <>
-                <Link href="/login" className="hidden text-sm font-medium text-brand sm:inline">
-                  Connexion
-                </Link>
-                <Link href="/register" className="btn-primary px-4 py-2">
-                  S&apos;inscrire
-                </Link>
-              </>
-            )}
+                  <Link href="/register" className="btn-primary px-4 py-2">
+                    S&apos;inscrire
+                  </Link>
+                </>
+              )}
+            </div>
           </div>
         </div>
 
