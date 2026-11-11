@@ -89,4 +89,4 @@ function lastOtp(email) {
   return mail?.html.match(/>(\d{6})</)?.[1];
 }
 
-module.exports = { start, stop, client, signup, lastOtp, mailer };
+module.exports = { start, stop, client, signup, lastOtp, mailer, sentMails };

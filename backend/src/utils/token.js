@@ -1,9 +1,11 @@
 const jwt = require("jsonwebtoken");
+const { isDev } = require("./env");
 
 const COOKIE_NAME = "token";
 
 function signToken(user) {
   return jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET, {
+    algorithm: "HS256",
     expiresIn: process.env.JWT_EXPIRES_IN || "7d",
   });
 }
@@ -11,7 +13,7 @@ function signToken(user) {
 const cookieOptions = () => ({
   httpOnly: true,
   sameSite: "lax",
-  secure: process.env.NODE_ENV === "production",
+  secure: !isDev(),
   path: "/",
 });
 

@@ -73,7 +73,8 @@ export default function Profile({ username }: { username: string }) {
   }
 
   const joined = new Intl.DateTimeFormat("fr", { month: "long", year: "numeric" }).format(new Date(user.createdAt));
-  const website = user.website?.replace(/^https?:\/\//, "").replace(/\/$/, "");
+  const safeWebsite = /^https?:\/\//i.test(user.website ?? "") ? user.website : "";
+  const website = safeWebsite.replace(/^https?:\/\//i, "").replace(/\/$/, "");
 
   return (
     <div className="mx-auto max-w-6xl space-y-6">
@@ -208,10 +209,10 @@ export default function Profile({ username }: { username: string }) {
                   <MapPin className="size-4 shrink-0 text-muted" /> {user.location}
                 </li>
               )}
-              {user.website && (
+              {safeWebsite && (
                 <li className="flex items-center gap-3">
                   <Link2 className="size-4 shrink-0 text-muted" />
-                  <a href={user.website} target="_blank" rel="noopener noreferrer nofollow" className="truncate text-brand hover:underline">
+                  <a href={safeWebsite} target="_blank" rel="noopener noreferrer nofollow" className="truncate text-brand hover:underline">
                     {website}
                   </a>
                 </li>
@@ -220,7 +221,7 @@ export default function Profile({ username }: { username: string }) {
                 <CalendarDays className="size-4 shrink-0 text-muted" /> Membre depuis {joined}
               </li>
             </ul>
-            {!user.bio && !user.location && !user.website && !isMe && (
+            {!user.bio && !user.location && !safeWebsite && !isMe && (
               <p className="text-xs text-muted">{user.name} n&apos;a pas encore rempli son profil.</p>
             )}
           </div>

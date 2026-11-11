@@ -13,7 +13,7 @@ async function loadUser(req) {
   const token = readToken(req);
   if (!token) return null;
   try {
-    const { id, iat } = jwt.verify(token, process.env.JWT_SECRET);
+    const { id, iat } = jwt.verify(token, process.env.JWT_SECRET, { algorithms: ["HS256"] });
     const user = await User.findById(id).select("+passwordChangedAt");
     if (!user || user.isBlocked) return null;
     if (user.passwordChangedAt && iat * 1000 < user.passwordChangedAt.getTime()) return null;
