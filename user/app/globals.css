@@ -44,3 +44,19 @@ body {
     display: none;
   }
 }
+
+@utility line-input {
+  @apply w-full border-0 border-b border-slate-200 bg-transparent px-0 py-2.5 text-sm text-ink transition outline-none placeholder:text-slate-300 hover:border-slate-300 focus:border-ink;
+}
+
+@utility btn-dark {
+  @apply btn rounded-full bg-ink text-white shadow-[0_10px_24px_-12px_rgba(17,24,39,0.7)] hover:bg-ink/90;
+}
+
+@utility alert-error {
+  @apply rounded-2xl border border-red-200/70 bg-red-50/70 px-4 py-3 text-sm text-red-600 backdrop-blur-md;
+}
+
+@utility alert-info {
+  @apply rounded-2xl border border-emerald-200/70 bg-emerald-50/70 px-4 py-3 text-sm text-emerald-700 backdrop-blur-md;
+}

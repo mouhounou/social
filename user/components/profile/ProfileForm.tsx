@@ -3,11 +3,11 @@
 import Image from "next/image";
 import { useMemo, useRef, useState } from "react";
 import { Camera, Trash2 } from "lucide-react";
-import Avatar from "@/components/Avatar";
-import { useAuth } from "@/lib/auth";
+import Avatar from "@/components/ui/Avatar";
+import { useAuth } from "@/hooks/useAuth";
 import { api } from "@/lib/api";
-import { DEFAULT_COVER } from "@/lib/images";
-import type { User } from "@/lib/types";
+import { DEFAULT_COVER } from "@/lib/constants";
+import type { User } from "@/types";
 
 type Props = {
   user: User;

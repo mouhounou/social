@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import Feed from "@/components/Feed";
-import { CATEGORIES } from "@/lib/categories";
-import SuggestionsCard from "@/components/SuggestionsCard";
+import Feed from "@/components/post/Feed";
+import { CATEGORIES } from "@/lib/constants";
+import SuggestionsCard from "@/components/profile/SuggestionsCard";
 
 export const metadata: Metadata = { title: "Explorer" };
 

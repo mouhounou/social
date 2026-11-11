@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { CATEGORIES } from "@/lib/categories";
+import { CATEGORIES } from "@/lib/constants";
 
 export default function CategoryChips() {
   const active = useSearchParams().get("category");

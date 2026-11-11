@@ -2,12 +2,11 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Lock } from "lucide-react";
-import AuthField from "@/components/AuthField";
-import { useAuth } from "@/lib/auth";
+import AuthField from "@/components/auth/AuthField";
+import { useAuth } from "@/hooks/useAuth";
 import { api } from "@/lib/api";
-import { clearRecovery, getRecovery } from "@/lib/recovery";
-import type { User } from "@/lib/types";
+import { clearRecovery, getRecovery } from "@/utils/recovery";
+import type { User } from "@/types";
 
 export default function ResetPasswordPage() {
   const router = useRouter();
@@ -50,13 +49,12 @@ export default function ResetPasswordPage() {
 
   return (
     <>
-      <h1 className="text-3xl font-semibold">Nouveau mot de passe</h1>
-      <p className="mt-2 text-sm text-muted">Choisis un mot de passe d&apos;au moins 6 caractères.</p>
+      <h1 className="text-center text-3xl font-bold tracking-tight">Nouveau mot de passe</h1>
+      <p className="mt-2 text-center text-xs text-muted">Choisis un mot de passe d&apos;au moins 6 caractères.</p>
 
-      <form onSubmit={submit} className="mt-8 space-y-5">
+      <form onSubmit={submit} className="mt-10 space-y-6">
         <AuthField
           label="Nouveau mot de passe"
-          icon={Lock}
           type="password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
@@ -66,7 +64,6 @@ export default function ResetPasswordPage() {
         />
         <AuthField
           label="Confirmer"
-          icon={Lock}
           type="password"
           value={confirm}
           onChange={(e) => setConfirm(e.target.value)}
@@ -74,8 +71,8 @@ export default function ResetPasswordPage() {
           autoComplete="new-password"
           required
         />
-        {error && <p className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-600">{error}</p>}
-        <button disabled={loading} className="btn-primary w-full py-3.5">
+        {error && <p className="alert-error">{error}</p>}
+        <button disabled={loading} className="btn-dark w-full py-3.5">
           {loading ? "Enregistrement…" : "Réinitialiser"}
         </button>
       </form>

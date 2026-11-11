@@ -3,18 +3,18 @@
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import { Bookmark, CalendarDays, Camera, Grid3x3, Link2, LoaderCircle, MapPin, UserPen } from "lucide-react";
-import Avatar from "@/components/Avatar";
-import Feed from "@/components/Feed";
-import FollowButton from "@/components/FollowButton";
-import Modal from "@/components/Modal";
-import Spinner from "@/components/Spinner";
+import Avatar from "@/components/ui/Avatar";
+import Feed from "@/components/post/Feed";
+import FollowButton from "@/components/profile/FollowButton";
+import Modal from "@/components/ui/Modal";
+import Spinner from "@/components/ui/Spinner";
 import ConnectionsModal from "@/components/profile/ConnectionsModal";
 import ProfileCompletion from "@/components/profile/ProfileCompletion";
 import ProfileForm from "@/components/profile/ProfileForm";
-import { useAuth } from "@/lib/auth";
+import { useAuth } from "@/hooks/useAuth";
 import { api } from "@/lib/api";
-import { DEFAULT_COVER } from "@/lib/images";
-import type { User } from "@/lib/types";
+import { DEFAULT_COVER } from "@/lib/constants";
+import type { User } from "@/types";
 
 const roles = { reader: "Lecteur", author: "Auteur", admin: "Admin" };
 

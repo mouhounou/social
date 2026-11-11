@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
-import Feed from "@/components/Feed";
-import RequireAuth from "@/components/RequireAuth";
+import Feed from "@/components/post/Feed";
+import RequireAuth from "@/components/auth/RequireAuth";
 
 export const metadata: Metadata = { title: "Enregistrés" };
 
