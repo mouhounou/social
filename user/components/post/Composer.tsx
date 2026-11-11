@@ -3,12 +3,14 @@
 import Link from "next/link";
 import { useRef, useState } from "react";
 import Image from "next/image";
-import { Earth, ImageIcon, Smile, Tag, Users, X } from "lucide-react";
+import { Earth, Hash, ImageIcon, Smile, Tag, Users, X } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { api } from "@/lib/api";
 import type { Post } from "@/types";
 import Avatar from "@/components/ui/Avatar";
 import { CATEGORIES } from "@/lib/constants";
+import { MAX_TAGS } from "@/lib/tags";
+import TagInput from "@/components/post/TagInput";
 
 export default function Composer({ onCreated }: { onCreated: (post: Post) => void }) {
   const { user } = useAuth();
@@ -17,6 +19,8 @@ export default function Composer({ onCreated }: { onCreated: (post: Post) => voi
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [category, setCategory] = useState("Autre");
+  const [tags, setTags] = useState<string[]>([]);
+  const [tagsOpen, setTagsOpen] = useState(false);
   const [visibility, setVisibility] = useState<"public" | "followers">("public");
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
@@ -56,6 +60,8 @@ export default function Composer({ onCreated }: { onCreated: (post: Post) => voi
     setTitle("");
     setContent("");
     setCategory("Autre");
+    setTags([]);
+    setTagsOpen(false);
     setFile(null);
     setPreview(null);
     setOpen(false);
@@ -71,6 +77,7 @@ export default function Composer({ onCreated }: { onCreated: (post: Post) => voi
     form.append("title", title);
     form.append("content", content);
     form.append("category", category);
+    form.append("tags", tags.join(","));
     form.append("visibility", visibility);
     if (file) form.append("image", file);
 
@@ -130,6 +137,12 @@ export default function Composer({ onCreated }: { onCreated: (post: Post) => voi
         </div>
       )}
 
+      {(tagsOpen || tags.length > 0) && (
+        <div className="mt-4 sm:ml-14">
+          <TagInput value={tags} onChange={setTags} autoFocus={tagsOpen} />
+        </div>
+      )}
+
       {error && <p className="mt-3 text-sm text-red-500 sm:ml-14">{error}</p>}
 
       <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-3 text-sm sm:gap-x-6 sm:pl-14">
@@ -142,6 +155,20 @@ export default function Composer({ onCreated }: { onCreated: (post: Post) => voi
           <ImageIcon className="size-5" /> <span className="hidden sm:inline">Image</span>
         </button>
         <input ref={fileRef} type="file" accept="image/*" hidden onChange={pickFile} />
+
+        <button
+          type="button"
+          onClick={() => {
+            setOpen(true);
+            setTagsOpen((o) => !o);
+          }}
+          aria-label="Ajouter des tags"
+          aria-expanded={tagsOpen || tags.length > 0}
+          className={`flex items-center gap-2 hover:text-brand ${tagsOpen || tags.length ? "text-brand" : ""}`}
+        >
+          <Hash className="size-5" />
+          <span className="hidden sm:inline">Tags{tags.length > 0 && ` ${tags.length}/${MAX_TAGS}`}</span>
+        </button>
 
         <label className="flex min-w-0 items-center gap-2">
           <Tag className="hidden size-5 shrink-0 min-[400px]:block" />

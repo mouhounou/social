@@ -4,7 +4,7 @@ const User = require("../models/User");
 const Notification = require("../models/Notification");
 const AppError = require("../utils/AppError");
 const categories = require("../utils/categories");
-const { text, optionalText, positiveInt } = require("../utils/input");
+const { text, optionalText, positiveInt, tagList, MAX_TAGS } = require("../utils/input");
 const { findVisiblePost } = require("../utils/postAccess");
 const { uploadBuffer, removeImage } = require("../config/cloudinary");
 
@@ -129,11 +129,20 @@ function readFields(body) {
   return fields;
 }
 
+function readTags(body) {
+  const tags = tagList(body.tags);
+  if (tags === null) throw new AppError("Les tags sont invalides");
+  if (tags && tags.length > MAX_TAGS) throw new AppError(`Pas plus de ${MAX_TAGS} tags par publication`);
+  return tags;
+}
+
 async function createPost(req, res) {
   const fields = readFields(req.body);
   if (!fields.title || !fields.content) throw new AppError("Le titre et le contenu sont obligatoires");
 
-  const post = new Post({ ...fields, author: req.user._id });
+  const tags = readTags(req.body);
+
+  const post = new Post({ ...fields, tags, author: req.user._id });
   await post.validate();
 
   if (req.file) post.image = await uploadBuffer(req.file.buffer, "posts");
@@ -150,8 +159,11 @@ async function updatePost(req, res) {
   if (!canEdit(post, req.user)) throw new AppError("Tu ne peux modifier que tes publications", 403);
 
   const fields = readFields(req.body);
+  const tags = readTags(req.body);
   Object.assign(post, fields);
-  if (fields.content !== undefined) post.tags = [];
+  // Les hashtags du texte sont recalculés à la validation.
+  if (tags) post.tags = tags;
+  else if (fields.content !== undefined) post.tags = [];
   await post.validate();
 
   const oldImage = post.image?.publicId;

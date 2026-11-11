@@ -27,6 +27,11 @@ const postFields = {
   content: { type: "string", maxLength: 10000, example: "Sept jours, sept pages. #art #aquarelle" },
   category: { type: "string", enum: categories },
   visibility: { type: "string", enum: ["public", "followers"] },
+  tags: {
+    type: "string",
+    description: "Tags ajoutés à la main, séparés par des virgules (7 max). En JSON, un tableau est aussi accepté. S'ajoutent aux hashtags du contenu.",
+    example: "art,aquarelle",
+  },
   image: { type: "string", format: "binary", description: "Image (5 Mo max), envoyée sur Cloudinary" },
 };
 

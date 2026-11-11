@@ -13,6 +13,7 @@ import type { Post } from "@/types";
 import Avatar from "@/components/ui/Avatar";
 import CommentInput from "@/components/post/CommentInput";
 import RichText from "@/components/ui/RichText";
+import { extraTags } from "@/lib/tags";
 
 type Props = {
   post: Post;
@@ -37,6 +38,7 @@ export default function PostCard({ post: initial, full = false, onDeleted, onCom
 
   const isOwner = user && (user._id === post.author._id || user.role === "admin");
   const long = !full && post.content.length > 280;
+  const tags = extraTags(post.tags ?? [], post.content);
   const content = long ? post.content.slice(0, 280).trimEnd() + "…" : post.content;
 
   async function toggle(kind: "like" | "save") {
@@ -140,6 +142,15 @@ export default function PostCard({ post: initial, full = false, onDeleted, onCom
             </Link>
           )}
         </p>
+        {tags.length > 0 && (
+          <p className="mt-2 flex flex-wrap gap-x-2 gap-y-1">
+            {tags.map((tag) => (
+              <Link key={tag} prefetch={false} href={`/?tag=${encodeURIComponent(tag)}`} className="text-brand hover:underline">
+                #{tag}
+              </Link>
+            ))}
+          </p>
+        )}
       </div>
 
       {post.image && (

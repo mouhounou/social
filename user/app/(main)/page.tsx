@@ -19,9 +19,11 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
   };
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_300px] xl:grid-cols-[280px_minmax(0,1fr)_280px]">
-      <aside className="hidden space-y-6 xl:block">
-        <div className="sticky top-[96px] space-y-6">
+    // Sur desktop, la page ne défile pas : seule la colonne du centre défile
+    // (hauteur = écran − barre de navigation 73px − marge haute 24px).
+    <div className="grid gap-6 lg:-mb-10 lg:h-[calc(100dvh-97px)] lg:grid-cols-[minmax(0,1fr)_300px] xl:grid-cols-[280px_minmax(0,1fr)_280px]">
+      <aside className="no-scrollbar hidden overflow-y-auto pb-6 xl:block">
+        <div className="space-y-6">
           <ProfileCard />
           <Suspense>
             <Shortcuts />
@@ -29,15 +31,15 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
         </div>
       </aside>
 
-      <section className="mx-auto w-full max-w-2xl min-w-0 space-y-4 lg:max-w-none">
+      <section className="no-scrollbar mx-auto w-full max-w-2xl min-w-0 space-y-4 lg:max-w-none lg:overflow-y-auto lg:pb-6">
         <Suspense>
           <CategoryChips />
         </Suspense>
         <Feed key={JSON.stringify(filters)} filters={filters} showComposer />
       </section>
 
-      <aside className="hidden space-y-6 lg:block">
-        <div className="sticky top-[96px] space-y-6">
+      <aside className="no-scrollbar hidden overflow-y-auto pb-6 lg:block">
+        <div className="space-y-6">
           <ActivityCard />
           <SuggestionsCard />
         </div>

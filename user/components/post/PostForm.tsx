@@ -7,6 +7,8 @@ import { ImageIcon, X } from "lucide-react";
 import { api } from "@/lib/api";
 import type { Post } from "@/types";
 import { CATEGORIES } from "@/lib/constants";
+import { MAX_TAGS, extraTags } from "@/lib/tags";
+import TagInput from "@/components/post/TagInput";
 
 export default function PostForm({ post }: { post?: Post }) {
   const router = useRouter();
@@ -15,6 +17,7 @@ export default function PostForm({ post }: { post?: Post }) {
   const [content, setContent] = useState(post?.content ?? "");
   const [category, setCategory] = useState(post?.category ?? "Autre");
   const [visibility, setVisibility] = useState(post?.visibility ?? "public");
+  const [tags, setTags] = useState(() => (post ? extraTags(post.tags, post.content).slice(0, MAX_TAGS) : []));
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(post?.image ?? null);
   const [removeImage, setRemoveImage] = useState(false);
@@ -30,6 +33,7 @@ export default function PostForm({ post }: { post?: Post }) {
     form.append("title", title);
     form.append("content", content);
     form.append("category", category);
+    form.append("tags", tags.join(","));
     form.append("visibility", visibility);
     if (file) form.append("image", file);
     if (removeImage && !file) form.append("removeImage", "true");
@@ -87,6 +91,11 @@ export default function PostForm({ post }: { post?: Post }) {
             <option value="followers">Abonnés uniquement</option>
           </select>
         </div>
+      </div>
+
+      <div className="space-y-2">
+        <label className="text-sm font-medium">Tags</label>
+        <TagInput value={tags} onChange={setTags} />
       </div>
 
       {preview ? (

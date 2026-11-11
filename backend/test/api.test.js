@@ -102,6 +102,24 @@ describe("articles", () => {
     assert.equal((await guest.get("/posts?author=auteur")).data.total, 1);
   });
 
+  it("accepte jusqu'à 7 tags saisis à la main, en plus des hashtags du texte", async () => {
+    const res = await author.post("/posts", { title: "Tags", content: "Texte #Photo", tags: ["#Voyage", "photo", "voyage"] });
+    assert.equal(res.status, 201);
+    assert.deepEqual(res.data.post.tags, ["voyage", "photo"]);
+    const id = res.data.post._id;
+
+    const form = new FormData();
+    form.append("tags", "mer, #plage");
+    assert.deepEqual((await author.patch(`/posts/${id}`, form)).data.post.tags, ["mer", "plage", "photo"]);
+    assert.deepEqual((await author.patch(`/posts/${id}`, { tags: "" })).data.post.tags, ["photo"]);
+
+    const eight = ["a", "b", "c", "d", "e", "f", "g", "h"];
+    assert.equal((await author.post("/posts", { title: "t", content: "c", tags: eight })).status, 400);
+    assert.equal((await author.post("/posts", { title: "t", content: "c", tags: ["pas valide!"] })).status, 400);
+    assert.equal((await author.post("/posts", { title: "t", content: "c", tags: { $ne: 1 } })).status, 400);
+    await author.delete(`/posts/${id}`);
+  });
+
   it("refuse l'envoi d'image quand Cloudinary n'est pas configuré, sans rien enregistrer", async () => {
     const form = new FormData();
     form.append("title", "Avec image");
