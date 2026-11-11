@@ -11,12 +11,17 @@ type Options = Omit<RequestInit, "body"> & { body?: unknown };
 export async function api<T = unknown>(path: string, { body, headers, ...init }: Options = {}): Promise<T> {
   const isForm = body instanceof FormData;
 
-  const res = await fetch(`/api${path}`, {
-    credentials: "include",
-    ...init,
-    headers: isForm ? headers : { "Content-Type": "application/json", ...headers },
-    body: body === undefined ? undefined : isForm ? body : JSON.stringify(body),
-  });
+  let res: Response;
+  try {
+    res = await fetch(`/api${path}`, {
+      credentials: "include",
+      ...init,
+      headers: isForm ? headers : { "Content-Type": "application/json", ...headers },
+      body: body === undefined ? undefined : isForm ? body : JSON.stringify(body),
+    });
+  } catch {
+    throw new ApiError("Impossible de joindre le serveur, vérifie ta connexion", 0);
+  }
 
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {

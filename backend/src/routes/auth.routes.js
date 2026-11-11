@@ -3,15 +3,17 @@ const rateLimit = require("express-rate-limit");
 const ctrl = require("../controllers/auth.controller");
 const { protect, optionalAuth } = require("../middlewares/auth");
 
-const limiter = (limit) =>
+const limiter = (limit, options = {}) =>
   rateLimit({
     windowMs: 15 * 60 * 1000,
     limit,
+    skip: () => process.env.NODE_ENV === "test",
     message: { message: "Trop de tentatives, réessaie dans quelques minutes" },
+    ...options,
   });
 
 router.post("/register", limiter(10), ctrl.register);
-router.post("/login", limiter(20), ctrl.login);
+router.post("/login", limiter(10, { skipSuccessfulRequests: true }), ctrl.login);
 router.post("/logout", ctrl.logout);
 router.get("/me", protect, ctrl.me);
 router.get("/session", optionalAuth, ctrl.session);

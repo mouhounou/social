@@ -37,3 +37,10 @@ body {
 @utility btn-ghost {
   @apply btn bg-field text-ink hover:bg-line;
 }
+
+@utility no-scrollbar {
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}

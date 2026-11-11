@@ -1,3 +1,5 @@
+const AppError = require("../utils/AppError");
+
 function notFound(req, res) {
   res.status(404).json({ message: `Route introuvable : ${req.originalUrl}` });
 }
@@ -22,7 +24,15 @@ function errorHandler(err, req, res, next) {
     message = err.code === "LIMIT_FILE_SIZE" ? "Image trop lourde (5 Mo max)" : err.message;
   }
 
-  if (status === 500) console.error(err);
+  if (err.type === "entity.parse.failed") {
+    status = 400;
+    message = "JSON invalide";
+  }
+
+  if (status >= 500 && !(err instanceof AppError)) {
+    console.error(err);
+    if (!err.expose) message = "Erreur serveur, réessaie plus tard";
+  }
   res.status(status).json({ message });
 }
 

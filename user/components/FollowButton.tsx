@@ -26,6 +26,8 @@ export default function FollowButton({ userId, initial, variant = "link", onChan
       setFollowing(res.following);
       onChange?.(res.following);
       refresh();
+    } catch (err) {
+      alert((err as Error).message);
     } finally {
       setBusy(false);
     }

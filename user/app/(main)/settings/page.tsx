@@ -2,30 +2,23 @@
 
 import { useState } from "react";
 import { KeyRound } from "lucide-react";
-import Spinner from "@/components/Spinner";
+import RequireAuth from "@/components/RequireAuth";
 import ProfileForm from "@/components/profile/ProfileForm";
-import { useAuth } from "@/lib/auth";
 import { api } from "@/lib/api";
 
 export default function SettingsPage() {
-  const { user } = useAuth();
-
-  if (!user) {
-    return (
-      <div className="flex justify-center py-20">
-        <Spinner />
-      </div>
-    );
-  }
-
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
-      <h1 className="text-lg font-semibold">Paramètres</h1>
-      <section className="card overflow-hidden">
-        <ProfileForm user={user} />
-      </section>
-      <PasswordForm />
-    </div>
+    <RequireAuth>
+      {(user) => (
+        <div className="mx-auto max-w-2xl space-y-6">
+          <h1 className="text-lg font-semibold">Paramètres</h1>
+          <section className="card overflow-hidden">
+            <ProfileForm key={user._id} user={user} />
+          </section>
+          <PasswordForm />
+        </div>
+      )}
+    </RequireAuth>
   );
 }
 

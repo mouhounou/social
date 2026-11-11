@@ -34,6 +34,7 @@ export default function ProfileCard() {
           src={user.cover || DEFAULT_COVER}
           alt=""
           fill
+          preload
           unoptimized={!user.cover}
           className="object-cover"
           sizes="280px"
