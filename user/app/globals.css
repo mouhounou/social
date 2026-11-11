@@ -35,7 +35,7 @@ body {
 }
 
 @utility btn-ghost {
-  @apply btn bg-field text-ink hover:bg-line;
+  @apply btn bg-field text-ink hover:bg-line cursor-pointer hover:scale-95 transition-all duration-200;
 }
 
 @utility no-scrollbar {

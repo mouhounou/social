@@ -75,7 +75,7 @@ export default function ProfileForm({ user, onSaved, onCancel }: Props) {
 
   return (
     <form onSubmit={submit}>
-      <div className="relative h-36 bg-[#F3ECE3] sm:h-44">
+      <div className="relative h-36 bg-[#F3ECE3] sm:h-60 lg:h-64">
         <Image
           src={coverPreview || DEFAULT_COVER}
           alt=""
@@ -85,11 +85,11 @@ export default function ProfileForm({ user, onSaved, onCancel }: Props) {
           className="object-cover"
           sizes="640px"
         />
-        <div className="absolute right-3 bottom-3 flex gap-2">
+        <div className="absolute  right-3 bottom-3 flex gap-2">
           <button
             type="button"
             onClick={() => coverInput.current?.click()}
-            className="flex items-center gap-1.5 rounded-full bg-black/60 px-3 py-1.5 text-xs font-medium text-white hover:bg-black/75"
+            className="flex items-center gap-1.5 rounded-full cursor-pointer hover:scale-95 transition-all duration-200 bg-black/60 px-3 py-1.5 text-xs font-medium text-white hover:bg-black/75"
           >
             <Camera className="size-4" /> Couverture
           </button>
@@ -98,7 +98,7 @@ export default function ProfileForm({ user, onSaved, onCancel }: Props) {
               type="button"
               onClick={() => setCover({ file: null, remove: true })}
               aria-label="Retirer la couverture"
-              className="rounded-full bg-black/60 p-1.5 text-white hover:bg-black/75"
+              className="rounded-full bg-black/60 p-1.5 cursor-pointer hover:scale-95 transition-all duration-200 text-white hover:bg-black/75"
             >
               <Trash2 className="size-4" />
             </button>
@@ -122,7 +122,7 @@ export default function ProfileForm({ user, onSaved, onCancel }: Props) {
           <button
             type="button"
             onClick={() => avatarInput.current?.click()}
-            className="group relative rounded-full"
+            className="group relative rounded-full cursor-pointer hover:scale-95 transition-all duration-200"
             aria-label="Changer la photo de profil"
           >
             <Avatar src={avatarPreview} name={form.name} size={92} className="ring-4 ring-white" />
@@ -134,7 +134,7 @@ export default function ProfileForm({ user, onSaved, onCancel }: Props) {
             <button
               type="button"
               onClick={() => setAvatar({ file: null, remove: true })}
-              className="mb-2 text-xs font-medium text-muted hover:text-red-500"
+              className="mb-2 text-xs cursor-pointer hover:scale-95 transition-all duration-200 font-medium text-muted hover:text-red-500"
             >
               Retirer la photo
             </button>
@@ -197,7 +197,7 @@ export default function ProfileForm({ user, onSaved, onCancel }: Props) {
 
         {message && <p className={`text-sm ${message.ok ? "text-emerald-600" : "text-red-500"}`}>{message.text}</p>}
 
-        <div className="flex justify-end gap-2">
+        <div className="flex justify-center gap-2">
           {onCancel && (
             <button type="button" onClick={onCancel} className="btn-ghost">
               Annuler

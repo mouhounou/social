@@ -29,7 +29,7 @@ function NotificationList() {
   }, []);
 
   return (
-    <div className="card mx-auto max-w-xl p-6">
+    <div className="card mx-auto  p-6">
       <h1 className="mb-6 text-lg font-semibold">Activité</h1>
       {items === null ? (
         <div className="flex justify-center py-8">
