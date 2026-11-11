@@ -7,9 +7,11 @@ const mailer = require("../config/mailer");
 const { otpEmail, welcomeEmail } = require("../utils/mailTemplates");
 const { signToken, setAuthCookie, clearAuthCookie } = require("../utils/token");
 const { text, EMAIL_RE } = require("../utils/input");
+const { isDev } = require("../utils/env");
 
 const OTP_TTL = 10 * 60 * 1000;
 const MAX_ATTEMPTS = 5;
+const DUMMY_HASH = bcrypt.hashSync("solola-mot-de-passe-factice", 10);
 
 function sha256(value) {
   return crypto.createHash("sha256").update(value).digest("hex");
@@ -60,9 +62,8 @@ async function login(req, res) {
 
   const user = await User.findOne({ $or: [{ email: identifier }, { username: identifier }] }).select("+password");
 
-  if (!user || !(await user.comparePassword(password))) {
-    throw new AppError("Identifiants incorrects", 401);
-  }
+  const valid = user ? await user.comparePassword(password) : await bcrypt.compare(password, DUMMY_HASH);
+  if (!user || !valid) throw new AppError("Identifiants incorrects", 401);
   if (user.isBlocked) throw new AppError("Ce compte est suspendu", 403);
 
   sendSession(res, user);
@@ -105,7 +106,7 @@ async function forgotPassword(req, res) {
       throw new AppError("Impossible d'envoyer l'email pour le moment, réessaie plus tard", 502);
     }
 
-    if (process.env.NODE_ENV !== "production" && !process.env.SMTP_USER) {
+    if (isDev() && !process.env.SMTP_USER) {
       console.log(`OTP pour ${email} : ${code}`);
     }
   }

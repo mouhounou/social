@@ -9,6 +9,14 @@ if (missing.length) {
   process.exit(1);
 }
 
+if (process.env.JWT_SECRET.length < 32) {
+  if (process.env.NODE_ENV === "production") {
+    console.error("JWT_SECRET doit faire au moins 32 caractères en production");
+    process.exit(1);
+  }
+  console.warn("JWT_SECRET est court : utilise au moins 32 caractères aléatoires");
+}
+
 const PORT = process.env.PORT || 5000;
 
 connectDB().then(() => {
