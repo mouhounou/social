@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ChevronDown, X } from "lucide-react";
 import Link from "next/link";
 import { useAuth } from "@/hooks/useAuth";
@@ -63,10 +63,18 @@ export default function Feed({ filters = {}, showComposer = false, showSort = tr
     };
   }, [fetchPage, authLoading, user?._id]);
 
+  // Sert à ignorer la réponse d'une page demandée avant un changement de tri.
+  const latestFetch = useRef(fetchPage);
+  useEffect(() => {
+    latestFetch.current = fetchPage;
+  }, [fetchPage]);
+
   async function loadMore() {
     setLoading(true);
+    setError("");
     try {
       const data = await fetchPage(page + 1);
+      if (latestFetch.current !== fetchPage) return;
       setPosts((prev) => {
         const seen = new Set(prev.map((p) => p._id));
         return [...prev, ...data.posts.filter((p) => !seen.has(p._id))];
@@ -74,11 +82,31 @@ export default function Feed({ filters = {}, showComposer = false, showSort = tr
       setPage(data.page);
       setPages(data.pages);
     } catch (err) {
-      setError((err as Error).message);
+      if (latestFetch.current === fetchPage) setError((err as Error).message);
     } finally {
-      setLoading(false);
+      if (latestFetch.current === fetchPage) setLoading(false);
     }
   }
+
+  // Défilement infini : la page suivante se charge quand la fin de la liste approche.
+  const loadMoreRef = useRef(loadMore);
+  useEffect(() => {
+    loadMoreRef.current = loadMore;
+  });
+  const hasMore = !loading && !error && page < pages;
+  const sentinel = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = sentinel.current;
+    if (!hasMore || !el) return;
+    const observer = new IntersectionObserver((entries) => {
+      if (entries.some((e) => e.isIntersecting)) {
+        observer.disconnect();
+        loadMoreRef.current();
+      }
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [hasMore, page]);
 
   function changeSort(value: string) {
     setSort(value);
@@ -140,9 +168,16 @@ export default function Feed({ filters = {}, showComposer = false, showSort = tr
         <p className="card p-10 text-center text-sm text-muted">{empty ?? "Aucune publication pour le moment."}</p>
       )}
 
-      {!loading && page < pages && (
+      {hasMore && (
+        <div className="relative">
+          {/* Repère invisible placé 600px avant la fin de la liste. */}
+          <div ref={sentinel} aria-hidden className="pointer-events-none absolute bottom-0 h-[600px] w-px" />
+        </div>
+      )}
+
+      {!loading && error && posts.length > 0 && page < pages && (
         <button onClick={loadMore} className="btn-ghost w-full bg-white">
-          Voir plus
+          Réessayer
         </button>
       )}
     </div>

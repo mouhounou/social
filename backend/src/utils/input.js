@@ -13,6 +13,19 @@ function positiveInt(value, fallback, max = Infinity) {
   return Math.min(n, max);
 }
 
+const MAX_TAGS = 7;
+const TAG_RE = /^[\p{L}0-9_]{1,30}$/u;
+
+// Accepte un tableau (JSON) ou une chaîne « art, #design » (multipart).
+// undefined = champ absent, null = valeur invalide.
+function tagList(value) {
+  if (value === undefined) return undefined;
+  const raw = Array.isArray(value) ? value : typeof value === "string" ? value.split(/[\s,]+/) : null;
+  if (!raw || raw.some((t) => typeof t !== "string")) return null;
+  const tags = [...new Set(raw.map((t) => t.trim().replace(/^#/, "").toLowerCase()).filter(Boolean))];
+  return tags.every((t) => TAG_RE.test(t)) ? tags : null;
+}
+
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-module.exports = { text, optionalText, positiveInt, EMAIL_RE };
+module.exports = { text, optionalText, positiveInt, tagList, MAX_TAGS, EMAIL_RE };

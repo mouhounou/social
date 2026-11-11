@@ -90,7 +90,7 @@ describe("redirection après connexion", () => {
 });
 
 describe("fil et articles", () => {
-  it("n'affiche pas de doublon après une publication puis « Voir plus »", async () => {
+  it("n'affiche pas de doublon après une publication puis le chargement de la page suivante", async () => {
     const p = await page();
     await login(p, "e2e_auteur");
     await p.goto(`${FRONT}/u/e2e_auteur`);
@@ -100,10 +100,42 @@ describe("fil et articles", () => {
     await p.getByPlaceholder(/Partage quelque chose/).fill("x");
     await p.getByRole("button", { name: "Publier" }).click();
     await p.getByText(title).waitFor();
-    await p.getByRole("button", { name: "Voir plus" }).click();
+    await p.locator("article").nth(10).waitFor();
+    await p.mouse.wheel(0, 20000);
+    await p.locator("article").nth(11).waitFor();
     await p.waitForTimeout(1500);
     const ids = await p.locator("article a[href^='/posts/'].font-semibold").evaluateAll((els) => els.map((e) => e.getAttribute("href")));
     assert.equal(ids.length, new Set(ids).size);
+    assert.deepEqual(p.errors, []);
+  });
+
+  it("ajoute des tags depuis le bouton du formulaire, sept au maximum", async () => {
+    const p = await page();
+    await login(p, "e2e_auteur");
+    await p.goto(`${FRONT}/u/e2e_auteur`);
+    const composer = p.locator("form", { has: p.getByPlaceholder(/Partage quelque chose/) });
+    const title = `Avec tags ${Date.now()}`;
+    await composer.getByRole("button", { name: "Ajouter des tags" }).click();
+    await composer.getByPlaceholder("Titre de ta publication").fill(title);
+    await composer.getByPlaceholder(/Partage quelque chose/).fill("x");
+    const input = composer.getByLabel("Ajouter un tag", { exact: true });
+    for (const tag of ["#Un", "deux", "trois", "quatre", "cinq", "six"]) {
+      await input.fill(tag);
+      await input.press("Enter");
+    }
+    // Entrée n'envoie pas le formulaire, et un doublon ne compte pas.
+    await input.fill("deux");
+    await input.press("Enter");
+    await composer.getByText("6/7 tags").waitFor();
+    await input.fill("sept");
+    await composer.getByRole("button", { name: "Ajouter le tag" }).click();
+    await composer.getByText("7/7 tags").waitFor();
+    assert.equal(await input.count(), 0);
+    await composer.getByRole("button", { name: "Retirer le tag sept" }).click();
+    await composer.getByRole("button", { name: "Publier" }).click();
+    const card = p.locator("article", { hasText: title });
+    await card.getByRole("link", { name: "#un", exact: true }).waitFor();
+    assert.equal(await card.locator("a[href^='/?tag=']").count(), 6);
     assert.deepEqual(p.errors, []);
   });
 
