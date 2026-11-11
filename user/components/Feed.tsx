@@ -66,7 +66,10 @@ export default function Feed({ filters = {}, showComposer = false, showSort = tr
     setLoading(true);
     try {
       const data = await fetchPage(page + 1);
-      setPosts((prev) => [...prev, ...data.posts]);
+      setPosts((prev) => {
+        const seen = new Set(prev.map((p) => p._id));
+        return [...prev, ...data.posts.filter((p) => !seen.has(p._id))];
+      });
       setPage(data.page);
       setPages(data.pages);
     } catch (err) {
@@ -90,7 +93,9 @@ export default function Feed({ filters = {}, showComposer = false, showSort = tr
 
   return (
     <div className="space-y-5">
-      {showComposer && <Composer onCreated={(post) => setPosts((prev) => [post, ...prev])} />}
+      {showComposer && (
+        <Composer onCreated={(post) => setPosts((prev) => [post, ...prev.filter((p) => p._id !== post._id)])} />
+      )}
 
       {(showSort || activeFilter) && (
         <div className="flex items-center gap-4">

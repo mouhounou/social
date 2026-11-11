@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Poppins } from "next/font/google";
 import { AuthProvider } from "@/lib/auth";
 import "./globals.css";
@@ -12,6 +12,13 @@ const poppins = Poppins({
 export const metadata: Metadata = {
   title: { default: "Solola", template: "%s · Solola" },
   description: "Partage tes idées, tes créations et découvre celles des autres.",
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  themeColor: "#ffffff",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

@@ -4,12 +4,15 @@ const User = require("../models/User");
 const Notification = require("../models/Notification");
 const AppError = require("../utils/AppError");
 const categories = require("../utils/categories");
+const { text, optionalText, positiveInt } = require("../utils/input");
+const { findVisiblePost } = require("../utils/postAccess");
 const { uploadBuffer, removeImage } = require("../config/cloudinary");
 
 const AUTHOR_FIELDS = "name username avatar role";
+const EDITABLE = ["title", "content", "category", "visibility"];
 
-function escapeRegex(text) {
-  return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+function escapeRegex(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 function serialize(post, user) {
@@ -40,17 +43,15 @@ function serialize(post, user) {
 }
 
 function canEdit(post, user) {
-  return post.author._id.toString() === user._id.toString() || user.role === "admin";
+  const authorId = post.author._id ?? post.author;
+  return authorId.equals(user._id) || user.role === "admin";
 }
 
-async function visibilityFilter(user) {
+function visibilityFilter(user) {
   if (!user) return { visibility: "public" };
+  if (user.role === "admin") return {};
   return {
-    $or: [
-      { visibility: "public" },
-      { author: user._id },
-      { author: { $in: user.following } },
-    ],
+    $or: [{ visibility: "public" }, { author: user._id }, { author: { $in: user.following } }],
   };
 }
 
@@ -59,35 +60,51 @@ function listCategories(req, res) {
 }
 
 async function listPosts(req, res) {
-  const { q, category, tag, author, sort = "recent", saved } = req.query;
-  const page = Math.max(1, Number(req.query.page) || 1);
-  const limit = Math.min(30, Number(req.query.limit) || 10);
+  const q = text(req.query.q).slice(0, 100);
+  const category = text(req.query.category);
+  const tag = text(req.query.tag).toLowerCase();
+  const author = text(req.query.author).toLowerCase();
+  const sort = text(req.query.sort) === "popular" ? "popular" : "recent";
+  const page = positiveInt(req.query.page, 1);
+  const limit = positiveInt(req.query.limit, 10, 30);
 
-  const filters = [await visibilityFilter(req.user)];
+  if (req.query.saved === "true" && !req.user) throw new AppError("Connecte-toi pour voir tes enregistrements", 401);
+
+  const filters = [visibilityFilter(req.user)];
 
   if (q) {
-    const rx = new RegExp(escapeRegex(q.trim()), "i");
+    const rx = new RegExp(escapeRegex(q), "i");
     filters.push({ $or: [{ title: rx }, { content: rx }, { tags: rx }] });
   }
   if (category) filters.push({ category });
-  if (tag) filters.push({ tags: tag.toLowerCase() });
+  if (tag) filters.push({ tags: tag });
   if (author) {
-    const user = await User.findOne({ username: author.toLowerCase() }).select("_id");
+    const user = await User.findOne({ username: author }).select("_id");
     filters.push({ author: user?._id ?? null });
   }
-  if (saved === "true" && req.user) filters.push({ saves: req.user._id });
+  if (req.query.saved === "true") filters.push({ saves: req.user._id });
 
   const where = { $and: filters };
-  const order = sort === "popular" ? { commentsCount: -1, createdAt: -1 } : { createdAt: -1 };
+  const skip = (page - 1) * limit;
 
-  const [posts, total] = await Promise.all([
-    Post.find(where)
-      .sort(order)
-      .skip((page - 1) * limit)
-      .limit(limit)
-      .populate("author", AUTHOR_FIELDS),
-    Post.countDocuments(where),
-  ]);
+  let posts;
+  if (sort === "popular") {
+    const rows = await Post.aggregate([
+      { $match: where },
+      { $addFields: { score: { $add: [{ $size: "$likes" }, "$commentsCount"] } } },
+      { $sort: { score: -1, createdAt: -1 } },
+      { $skip: skip },
+      { $limit: limit },
+    ]);
+    posts = await Post.populate(
+      rows.map((row) => Post.hydrate(row)),
+      { path: "author", select: AUTHOR_FIELDS }
+    );
+  } else {
+    posts = await Post.find(where).sort({ createdAt: -1 }).skip(skip).limit(limit).populate("author", AUTHOR_FIELDS);
+  }
+
+  const total = await Post.countDocuments(where);
 
   res.json({
     posts: posts.map((p) => serialize(p, req.user)),
@@ -98,31 +115,26 @@ async function listPosts(req, res) {
 }
 
 async function getPost(req, res) {
-  const post = await Post.findById(req.params.id).populate("author", AUTHOR_FIELDS);
-  if (!post) throw new AppError("Publication introuvable", 404);
-
-  if (post.visibility === "followers") {
-    const user = req.user;
-    const allowed =
-      user &&
-      (post.author._id.equals(user._id) || user.following.some((id) => id.equals(post.author._id)));
-    if (!allowed) throw new AppError("Cette publication est réservée aux abonnés", 403);
-  }
-
+  const post = await findVisiblePost(req.params.id, req.user, AUTHOR_FIELDS);
   res.json({ post: serialize(post, req.user) });
 }
 
-async function createPost(req, res) {
-  const { title, content, category, visibility } = req.body;
-  if (!title || !content) throw new AppError("Le titre et le contenu sont obligatoires");
+function readFields(body) {
+  const fields = {};
+  for (const key of EDITABLE) {
+    const value = optionalText(body[key]);
+    if (value === null) throw new AppError(`Le champ ${key} est invalide`);
+    if (value !== undefined) fields[key] = value;
+  }
+  return fields;
+}
 
-  const post = new Post({
-    author: req.user._id,
-    title,
-    content,
-    category,
-    visibility,
-  });
+async function createPost(req, res) {
+  const fields = readFields(req.body);
+  if (!fields.title || !fields.content) throw new AppError("Le titre et le contenu sont obligatoires");
+
+  const post = new Post({ ...fields, author: req.user._id });
+  await post.validate();
 
   if (req.file) post.image = await uploadBuffer(req.file.buffer, "posts");
 
@@ -137,54 +149,55 @@ async function updatePost(req, res) {
   if (!post) throw new AppError("Publication introuvable", 404);
   if (!canEdit(post, req.user)) throw new AppError("Tu ne peux modifier que tes publications", 403);
 
-  for (const field of ["title", "content", "category", "visibility"]) {
-    if (req.body[field] !== undefined) post[field] = req.body[field];
-  }
-  if (req.body.content !== undefined) post.tags = [];
+  const fields = readFields(req.body);
+  Object.assign(post, fields);
+  if (fields.content !== undefined) post.tags = [];
+  await post.validate();
 
+  const oldImage = post.image?.publicId;
   if (req.file) {
-    const old = post.image?.publicId;
     post.image = await uploadBuffer(req.file.buffer, "posts");
-    await removeImage(old);
-  } else if (req.body.removeImage === "true" && post.image?.publicId) {
-    await removeImage(post.image.publicId);
+  } else if (req.body.removeImage === "true") {
     post.image = undefined;
   }
 
   await post.save();
+  if (oldImage && oldImage !== post.image?.publicId) await removeImage(oldImage);
+
   res.json({ post: serialize(post, req.user) });
 }
 
 async function deletePost(req, res) {
-  const post = await Post.findById(req.params.id).populate("author", "_id");
+  const post = await Post.findById(req.params.id);
   if (!post) throw new AppError("Publication introuvable", 404);
   if (!canEdit(post, req.user)) throw new AppError("Tu ne peux supprimer que tes publications", 403);
 
+  await post.deleteOne();
   await Promise.all([
     removeImage(post.image?.publicId),
     Comment.deleteMany({ post: post._id }),
     Notification.deleteMany({ post: post._id }),
   ]);
-  await post.deleteOne();
 
   res.json({ message: "Publication supprimée" });
 }
 
 async function toggle(req, res, field) {
-  const post = await Post.findById(req.params.id);
-  if (!post) throw new AppError("Publication introuvable", 404);
-
+  const post = await findVisiblePost(req.params.id, req.user);
   const uid = req.user._id;
-  const active = post[field].some((id) => id.equals(uid));
+  const options = { returnDocument: "after", projection: { [field]: 1 } };
 
-  await Post.updateOne({ _id: post._id }, active ? { $pull: { [field]: uid } } : { $addToSet: { [field]: uid } });
+  let updated = await Post.findOneAndUpdate({ _id: post._id, [field]: { $ne: uid } }, { $push: { [field]: uid } }, options);
+  const active = !!updated;
+  if (!updated) updated = await Post.findOneAndUpdate({ _id: post._id }, { $pull: { [field]: uid } }, options);
+  if (!updated) throw new AppError("Publication introuvable", 404);
 
-  if (field === "likes" && !active) {
-    await Notification.push({ recipient: post.author, actor: uid, type: "like", post: post._id });
+  if (field === "likes") {
+    const notification = { recipient: post.author, actor: uid, type: "like", post: post._id };
+    await (active ? Notification.push(notification) : Notification.pull(notification));
   }
 
-  const count = post[field].length + (active ? -1 : 1);
-  res.json({ active: !active, count });
+  res.json({ active, count: updated[field].length });
 }
 
 const likePost = (req, res) => toggle(req, res, "likes");

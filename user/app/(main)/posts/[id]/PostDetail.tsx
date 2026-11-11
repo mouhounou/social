@@ -33,8 +33,12 @@ export default function PostDetail({ id }: { id: string }) {
 
   async function removeComment(commentId: string) {
     if (!confirm("Supprimer ce commentaire ?")) return;
-    await api(`/comments/${commentId}`, { method: "DELETE" });
-    setComments((list) => list.filter((c) => c._id !== commentId));
+    try {
+      await api(`/comments/${commentId}`, { method: "DELETE" });
+      setComments((list) => list.filter((c) => c._id !== commentId));
+    } catch (err) {
+      alert((err as Error).message);
+    }
   }
 
   if (error) {
@@ -62,7 +66,7 @@ export default function PostDetail({ id }: { id: string }) {
         <ArrowLeft className="size-4" /> Retour
       </Link>
 
-      <PostCard post={post} full />
+      <PostCard post={post} full commentsCount={comments.length} />
 
       <section id="comments" className="card space-y-5 p-5">
         <h2 className="font-semibold">Commentaires ({comments.length})</h2>

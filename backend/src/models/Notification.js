@@ -13,7 +13,19 @@ const notificationSchema = new mongoose.Schema(
 
 notificationSchema.statics.push = async function ({ recipient, actor, type, post }) {
   if (String(recipient) === String(actor)) return;
-  await this.create({ recipient, actor, type, post });
+  if (type === "comment") {
+    await this.create({ recipient, actor, type, post });
+    return;
+  }
+  await this.findOneAndUpdate(
+    { recipient, actor, type, post: post ?? null },
+    { $set: { read: false, createdAt: new Date() } },
+    { upsert: true, timestamps: false }
+  );
+};
+
+notificationSchema.statics.pull = function ({ recipient, actor, type, post }) {
+  return this.deleteOne({ recipient, actor, type, post: post ?? null });
 };
 
 module.exports = mongoose.model("Notification", notificationSchema);

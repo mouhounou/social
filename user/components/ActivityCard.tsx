@@ -21,9 +21,9 @@ function isToday(date: string) {
   return new Date(date).toDateString() === new Date().toDateString();
 }
 
-export function NotificationItem({ n }: { n: Notification }) {
+export function NotificationItem({ n, className = "" }: { n: Notification; className?: string }) {
   return (
-    <li className="flex items-center gap-3">
+    <li className={`flex items-center gap-3 ${className}`}>
       <Link href={`/u/${n.actor.username}`}>
         <Avatar src={n.actor.avatar} name={n.actor.name} size={40} />
       </Link>

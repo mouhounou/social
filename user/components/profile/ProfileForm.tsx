@@ -80,6 +80,7 @@ export default function ProfileForm({ user, onSaved, onCancel }: Props) {
           src={coverPreview || DEFAULT_COVER}
           alt=""
           fill
+          preload
           unoptimized={!coverPreview || coverPreview.startsWith("blob:")}
           className="object-cover"
           sizes="640px"
