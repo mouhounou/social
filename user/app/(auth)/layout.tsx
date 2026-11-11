@@ -1,6 +1,6 @@
 import { Heart, MessageCircle } from "lucide-react";
-import GuestOnly from "@/components/GuestOnly";
-import Logo from "@/components/Logo";
+import GuestOnly from "@/components/auth/GuestOnly";
+import Logo from "@/components/layout/Logo";
 
 export default function AuthLayout({ children }: LayoutProps<"/">) {
   return (

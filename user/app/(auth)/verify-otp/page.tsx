@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { ArrowLeft } from "lucide-react";
 import { api } from "@/lib/api";
-import { getRecovery, setRecovery } from "@/lib/recovery";
+import { getRecovery, setRecovery } from "@/utils/recovery";
 
 const LENGTH = 6;
 const RESEND_DELAY = 60;

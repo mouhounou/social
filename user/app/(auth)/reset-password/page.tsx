@@ -3,11 +3,11 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Lock } from "lucide-react";
-import AuthField from "@/components/AuthField";
-import { useAuth } from "@/lib/auth";
+import AuthField from "@/components/auth/AuthField";
+import { useAuth } from "@/hooks/useAuth";
 import { api } from "@/lib/api";
-import { clearRecovery, getRecovery } from "@/lib/recovery";
-import type { User } from "@/lib/types";
+import { clearRecovery, getRecovery } from "@/utils/recovery";
+import type { User } from "@/types";
 
 export default function ResetPasswordPage() {
   const router = useRouter();

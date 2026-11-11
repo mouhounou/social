@@ -1,12 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import PostForm from "@/components/PostForm";
-import RequireAuth from "@/components/RequireAuth";
-import Spinner from "@/components/Spinner";
-import { useAuth } from "@/lib/auth";
+import PostForm from "@/components/post/PostForm";
+import RequireAuth from "@/components/auth/RequireAuth";
+import Spinner from "@/components/ui/Spinner";
+import { useAuth } from "@/hooks/useAuth";
 import { api } from "@/lib/api";
-import type { Post } from "@/lib/types";
+import type { Post } from "@/types";
 
 export default function EditPost({ id }: { id: string }) {
   return (

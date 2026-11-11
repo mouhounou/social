@@ -1,5 +1,5 @@
 import Image from "next/image";
-import { DEFAULT_AVATAR } from "@/lib/images";
+import { DEFAULT_AVATAR } from "@/lib/constants";
 
 type Props = {
   src?: string | null;

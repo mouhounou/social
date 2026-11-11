@@ -2,12 +2,12 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import Avatar from "@/components/Avatar";
-import FollowButton from "@/components/FollowButton";
-import Modal from "@/components/Modal";
-import Spinner from "@/components/Spinner";
+import Avatar from "@/components/ui/Avatar";
+import FollowButton from "@/components/profile/FollowButton";
+import Modal from "@/components/ui/Modal";
+import Spinner from "@/components/ui/Spinner";
 import { api } from "@/lib/api";
-import type { Connection } from "@/lib/types";
+import type { Connection } from "@/types";
 
 type Props = {
   username: string;

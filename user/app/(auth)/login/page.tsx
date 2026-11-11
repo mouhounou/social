@@ -4,10 +4,10 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { AtSign, Lock } from "lucide-react";
-import AuthField from "@/components/AuthField";
-import { useAuth } from "@/lib/auth";
+import AuthField from "@/components/auth/AuthField";
+import { useAuth } from "@/hooks/useAuth";
 import { api } from "@/lib/api";
-import type { User } from "@/lib/types";
+import type { User } from "@/types";
 
 function safeNext() {
   const next = new URLSearchParams(window.location.search).get("next");
