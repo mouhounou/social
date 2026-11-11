@@ -66,6 +66,29 @@ describe("session", () => {
   });
 });
 
+describe("redirection après connexion", () => {
+  for (const next of ["/%5Cexample.org", "/%5C%5Cexample.org", "/%09/example.org", "https://example.org"]) {
+    it(`reste sur le site avec next=${decodeURIComponent(next)}`, async () => {
+      const p = await page();
+      await p.route("**://example.org/**", (r) => r.fulfill({ body: "externe" }));
+      await p.goto(`${FRONT}/login?next=${next}`);
+      await p.getByLabel("Email ou nom d'utilisateur").fill("e2e_lecteur");
+      await p.getByLabel("Mot de passe").fill(PASSWORD);
+      await p.getByRole("button", { name: "Se connecter" }).click();
+      await p.waitForURL(`${FRONT}/`);
+    });
+  }
+
+  it("respecte une adresse interne", async () => {
+    const p = await page();
+    await p.goto(`${FRONT}/login?next=%2Fsaved`);
+    await p.getByLabel("Email ou nom d'utilisateur").fill("e2e_lecteur");
+    await p.getByLabel("Mot de passe").fill(PASSWORD);
+    await p.getByRole("button", { name: "Se connecter" }).click();
+    await p.waitForURL(`${FRONT}/saved`);
+  });
+});
+
 describe("fil et articles", () => {
   it("n'affiche pas de doublon après une publication puis « Voir plus »", async () => {
     const p = await page();

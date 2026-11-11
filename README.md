@@ -70,6 +70,21 @@ Le front appelle `/api/*`, que Next réécrit vers `API_URL`. Le cookie de sessi
 Sans photo ou couverture, le front affiche `user/public/default-avatar.svg` et `user/public/default-cover.svg`.
 Depuis sa page profil, l'utilisateur change directement sa couverture et son avatar (envoyés sur Cloudinary), ou ouvre « Modifier le profil » pour ses infos (nom, pseudo, bio, ville, site) et pour revenir aux images par défaut. Le mot de passe se change dans Paramètres.
 
+## Sécurité
+
+- Session dans un cookie `httpOnly`, `SameSite=Lax`, `Secure` hors développement ; JWT signé en HS256, invalidé après un changement ou une réinitialisation de mot de passe.
+- Limites anti-abus : par adresse IP sur toute l'API, et par compte sur la connexion (10 mots de passe faux) et la demande de code OTP (3 par email), même si l'attaquant change d'adresse IP.
+- En-têtes de sécurité (`helmet` côté API, `next.config.ts` côté front), site non intégrable dans une iframe, redirection après connexion limitée au site.
+- Images acceptées : JPEG, PNG, WebP, GIF, AVIF (pas de SVG), 5 Mo au plus.
+- `pnpm test` contient une suite `security.test.js` qui vérifie chacun de ces points.
+
+En production :
+
+- définis `NODE_ENV=production` : sans lui, le cookie n'est pas `Secure` et le code OTP s'affiche dans les journaux ;
+- utilise un `JWT_SECRET` d'au moins 32 caractères aléatoires (l'API refuse de démarrer sinon) ;
+- la doc Swagger est désactivée ; `API_DOCS=true` la réactive ;
+- les limites anti-abus sont gardées en mémoire : avec plusieurs instances de l'API, il faut un stockage partagé (Redis).
+
 ## Rôles
 
 | Rôle    | Peut faire                                                      |

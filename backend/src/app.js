@@ -1,6 +1,7 @@
 const express = require("express");
 const cors = require("cors");
 const cookieParser = require("cookie-parser");
+const helmet = require("helmet");
 const swaggerUi = require("swagger-ui-express");
 
 const authRoutes = require("./routes/auth.routes");
@@ -10,10 +11,14 @@ const userRoutes = require("./routes/user.routes");
 const notificationRoutes = require("./routes/notification.routes");
 const { notFound, errorHandler } = require("./middlewares/error");
 const openapi = require("./docs/openapi");
+const { apiLimiter } = require("./middlewares/rateLimit");
 
 const app = express();
 
+app.disable("x-powered-by");
 app.set("trust proxy", process.env.TRUST_PROXY || "loopback");
+
+app.use(helmet());
 
 app.use(
   cors({
@@ -28,6 +33,8 @@ app.use((req, res, next) => {
   next();
 });
 
+app.use("/api", apiLimiter);
+
 app.get("/api/health", (req, res) => res.json({ ok: true }));
 
 app.use("/api/auth", authRoutes);
@@ -36,8 +43,10 @@ app.use("/api/comments", commentRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/notifications", notificationRoutes);
 
-app.get("/docs.json", (req, res) => res.json(openapi));
-app.use("/docs", swaggerUi.serve, swaggerUi.setup(openapi, { customSiteTitle: "API Solola" }));
+if (process.env.NODE_ENV !== "production" || process.env.API_DOCS === "true") {
+  app.get("/docs.json", (req, res) => res.json(openapi));
+  app.use("/docs", swaggerUi.serve, swaggerUi.setup(openapi, { customSiteTitle: "API Solola" }));
+}
 
 app.use(notFound);
 app.use(errorHandler);

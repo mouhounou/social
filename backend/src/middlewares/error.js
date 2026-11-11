@@ -20,7 +20,7 @@ function errorHandler(err, req, res, next) {
     message = field === "email" ? "Cet email est déjà utilisé" : "Ce nom d'utilisateur est déjà pris";
   } else if (err.name === "MulterError") {
     status = 400;
-    message = err.code === "LIMIT_FILE_SIZE" ? "Image trop lourde (5 Mo max)" : err.message;
+    message = err.code === "LIMIT_FILE_SIZE" ? "Image trop lourde (5 Mo max)" : "Envoi de fichier invalide";
   }
 
   if (err.type === "entity.parse.failed") {
