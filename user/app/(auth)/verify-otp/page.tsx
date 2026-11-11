@@ -110,11 +110,11 @@ export default function VerifyOtpPage() {
 
   return (
     <>
-      <Link href="/forgot-password" className="mb-8 inline-flex items-center gap-2 text-sm text-muted hover:text-ink">
+      <Link href="/forgot-password" className="mb-6 inline-flex items-center gap-2 text-xs text-muted hover:text-ink">
         <ArrowLeft className="size-4" /> Changer d&apos;email
       </Link>
-      <h1 className="text-3xl font-semibold">Vérifie tes emails</h1>
-      <p className="mt-2 text-sm text-muted">
+      <h1 className="text-center text-3xl font-bold tracking-tight">Vérifie tes emails</h1>
+      <p className="mt-2 text-center text-xs text-muted">
         On a envoyé un code à <span className="font-medium text-ink">{email}</span>. Il est valable 10 minutes.
       </p>
 
@@ -144,25 +144,25 @@ export default function VerifyOtpPage() {
               inputMode="numeric"
               autoComplete={i === 0 ? "one-time-code" : "off"}
               maxLength={LENGTH}
-              className="size-12 rounded-xl bg-field text-center text-xl font-semibold outline-none focus:ring-2 focus:ring-brand sm:size-14"
+              className="size-12 rounded-xl border border-slate-200 bg-white text-center text-xl font-semibold transition outline-none focus:border-ink sm:size-14"
             />
           ))}
         </div>
 
-        {error && <p className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-600">{error}</p>}
-        {info && <p className="rounded-xl bg-emerald-50 px-4 py-3 text-sm text-emerald-700">{info}</p>}
+        {error && <p className="alert-error">{error}</p>}
+        {info && <p className="alert-info">{info}</p>}
 
-        <button disabled={loading || digits.join("").length < LENGTH} className="btn-primary w-full py-3.5">
+        <button disabled={loading || digits.join("").length < LENGTH} className="btn-dark w-full py-3.5">
           {loading ? "Vérification…" : "Vérifier"}
         </button>
       </form>
 
-      <p className="mt-8 text-center text-sm text-muted">
+      <p className="mt-10 text-center text-xs text-muted">
         Rien reçu ?{" "}
         {cooldown > 0 ? (
           <span>Renvoyer dans {cooldown}s</span>
         ) : (
-          <button onClick={resend} className="font-medium text-brand">
+          <button onClick={resend} className="font-semibold text-ink hover:underline">
             Renvoyer le code
           </button>
         )}
