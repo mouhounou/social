@@ -4,6 +4,7 @@
 |---|---|
 | `landing.png` | Landing page, 1440 × 3100 (export @2x) |
 | `dashboard.png` | Dashboard, 1440 × 1160 (export @2x) |
+| `EcomPilot-maquettes.pdf` | Les 2 maquettes en PDF vectoriel (2 pages) |
 | `landing.svg` / `dashboard.svg` | Versions vectorielles **à importer dans Figma** (calques nommés, textes éditables) |
 | `source/` | Générateur des maquettes (Python + rendu Playwright) |
 
