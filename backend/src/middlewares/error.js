@@ -4,7 +4,6 @@ function notFound(req, res) {
   res.status(404).json({ message: `Route introuvable : ${req.originalUrl}` });
 }
 
-// eslint-disable-next-line no-unused-vars
 function errorHandler(err, req, res, next) {
   let status = err.status || 500;
   let message = err.message || "Erreur serveur";

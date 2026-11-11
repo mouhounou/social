@@ -136,6 +136,9 @@ describe("visibilité « abonnés »", () => {
     await reader.post(`/users/${author.user._id}/follow`);
     assert.equal((await reader.get(`/posts/${privatePost._id}`)).status, 200);
     assert.equal((await reader.post(`/posts/${privatePost._id}/comments`, { content: "merci" })).status, 201);
+    const comments = await reader.get(`/posts/${privatePost._id}/comments`);
+    assert.equal(comments.status, 200);
+    assert.equal(comments.data.comments.length, 1);
     await reader.post(`/users/${author.user._id}/follow`);
   });
 });
