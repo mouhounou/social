@@ -58,6 +58,9 @@ function client() {
     patch: (p, b, h) => request("PATCH", p, b, h),
     delete: (p) => request("DELETE", p),
     raw: request,
+    get baseUrl() {
+      return baseUrl;
+    },
     get cookie() {
       return cookie;
     },
