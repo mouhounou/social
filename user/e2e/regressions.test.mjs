@@ -90,7 +90,7 @@ describe("redirection après connexion", () => {
 });
 
 describe("fil et articles", () => {
-  it("n'affiche pas de doublon après une publication puis « Voir plus »", async () => {
+  it("n'affiche pas de doublon après une publication puis le chargement de la page suivante", async () => {
     const p = await page();
     await login(p, "e2e_auteur");
     await p.goto(`${FRONT}/u/e2e_auteur`);
@@ -100,7 +100,9 @@ describe("fil et articles", () => {
     await p.getByPlaceholder(/Partage quelque chose/).fill("x");
     await p.getByRole("button", { name: "Publier" }).click();
     await p.getByText(title).waitFor();
-    await p.getByRole("button", { name: "Voir plus" }).click();
+    await p.locator("article").nth(10).waitFor();
+    await p.mouse.wheel(0, 20000);
+    await p.locator("article").nth(11).waitFor();
     await p.waitForTimeout(1500);
     const ids = await p.locator("article a[href^='/posts/'].font-semibold").evaluateAll((els) => els.map((e) => e.getAttribute("href")));
     assert.equal(ids.length, new Set(ids).size);
