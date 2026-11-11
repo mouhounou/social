@@ -22,13 +22,14 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
     // Sur desktop, la page ne défile pas : seule la colonne du centre défile
     // (hauteur = écran − barre de navigation 73px − marge haute 24px).
     <div className="grid gap-6 lg:-mb-10 lg:h-[calc(100dvh-97px)] lg:grid-cols-[minmax(0,1fr)_300px] xl:grid-cols-[280px_minmax(0,1fr)_280px]">
-      <aside className="no-scrollbar hidden overflow-y-auto pb-6 xl:block">
-        <div className="space-y-6">
+      {/* Le profil garde sa taille ; la carte des catégories prend la hauteur restante et défile à l'intérieur. */}
+      <aside className="no-scrollbar hidden min-h-0 flex-col gap-6 overflow-y-auto pb-6 xl:flex">
+        <div className="shrink-0">
           <ProfileCard />
-          <Suspense>
-            <Shortcuts />
-          </Suspense>
         </div>
+        <Suspense>
+          <Shortcuts />
+        </Suspense>
       </aside>
 
       <section className="no-scrollbar mx-auto w-full max-w-2xl min-w-0 space-y-4 lg:max-w-none lg:overflow-y-auto lg:pb-6">
