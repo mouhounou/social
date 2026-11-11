@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { AtSign, Lock } from "lucide-react";
 import AuthField from "@/components/auth/AuthField";
 import { useAuth } from "@/hooks/useAuth";
 import { api } from "@/lib/api";
@@ -49,13 +48,12 @@ export default function LoginPage() {
 
   return (
     <>
-      <h1 className="text-3xl font-semibold">Content de te revoir</h1>
-      <p className="mt-2 text-sm text-muted">Connecte-toi pour retrouver ton fil.</p>
+      <h1 className="text-center text-3xl font-bold tracking-tight">Content de te revoir</h1>
+      <p className="mt-2 text-center text-xs text-muted">Connecte-toi pour retrouver ton fil.</p>
 
-      <form onSubmit={submit} className="mt-8 space-y-5">
+      <form onSubmit={submit} className="mt-10 space-y-6">
         <AuthField
           label="Email ou nom d'utilisateur"
-          icon={AtSign}
           value={identifier}
           onChange={(e) => setIdentifier(e.target.value)}
           autoComplete="username"
@@ -63,7 +61,6 @@ export default function LoginPage() {
         />
         <AuthField
           label="Mot de passe"
-          icon={Lock}
           type="password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
@@ -71,26 +68,26 @@ export default function LoginPage() {
           required
         />
 
-        <div className="text-right">
-          <Link href="/forgot-password" className="text-sm font-medium text-brand">
+        <div className="-mt-2 text-right">
+          <Link href="/forgot-password" className="text-xs text-muted hover:text-ink">
             Mot de passe oublié ?
           </Link>
         </div>
 
-        {error && <p className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-600">{error}</p>}
+        {error && <p className="alert-error">{error}</p>}
 
-        <button disabled={loading} className="btn-primary w-full py-3.5">
+        <button disabled={loading} className="btn-dark w-full py-3.5">
           {loading ? "Connexion…" : "Se connecter"}
         </button>
       </form>
 
-      <p className="mt-8 text-center text-sm text-muted">
+      <p className="mt-10 text-center text-xs text-muted">
         Pas encore de compte ?{" "}
-        <Link href="/register" className="font-medium text-brand">
+        <Link href="/register" className="font-semibold text-ink hover:underline">
           Inscris-toi
         </Link>
       </p>
-      <p className="mt-3 text-center text-sm">
+      <p className="mt-3 text-center text-xs">
         <Link href="/" className="text-muted hover:text-ink">
           Continuer sans compte
         </Link>

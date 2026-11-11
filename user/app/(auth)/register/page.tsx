@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { AtSign, BookOpen, Lock, Mail, PenLine, User as UserIcon } from "lucide-react";
+import { BookOpen, PenLine } from "lucide-react";
 import AuthField from "@/components/auth/AuthField";
 import { useAuth } from "@/hooks/useAuth";
 import { api } from "@/lib/api";
@@ -45,41 +45,45 @@ export default function RegisterPage() {
 
   return (
     <>
-      <h1 className="text-3xl font-semibold">Crée ton compte</h1>
-      <p className="mt-2 text-sm text-muted">Ça prend moins d&apos;une minute.</p>
+      <h1 className="text-center text-3xl font-bold tracking-tight">Crée ton compte</h1>
+      <p className="mt-2 text-center text-xs text-muted">Ça prend moins d&apos;une minute.</p>
 
-      <form onSubmit={submit} className="mt-8 space-y-5">
+      <form onSubmit={submit} className="mt-10 space-y-6">
         <div className="grid grid-cols-2 gap-3">
           {roles.map(({ value, label, hint, icon: Icon }) => (
             <button
               type="button"
               key={value}
               onClick={() => setRole(value)}
-              className={`rounded-2xl border-2 p-4 text-left transition ${
-                role === value ? "border-brand bg-brand-soft" : "border-line hover:border-brand/40"
+              className={`rounded-2xl border p-3.5 text-left transition ${
+                role === value ? "border-ink bg-slate-50" : "border-slate-200 hover:border-slate-300"
               }`}
             >
-              <Icon className={`size-5 ${role === value ? "text-brand" : "text-muted"}`} />
+              <span
+                className={`flex size-8 items-center justify-center rounded-lg transition ${
+                  role === value ? "bg-ink text-white" : "bg-slate-100 text-slate-400"
+                }`}
+              >
+                <Icon className="size-4" />
+              </span>
               <p className="mt-2 text-sm font-semibold">{label}</p>
               <p className="text-[11px] text-muted">{hint}</p>
             </button>
           ))}
         </div>
 
-        <AuthField label="Nom complet" icon={UserIcon} value={form.name} onChange={update("name")} required />
+        <AuthField label="Nom complet" value={form.name} onChange={update("name")} required />
         <AuthField
           label="Nom d'utilisateur"
-          icon={AtSign}
           value={form.username}
           onChange={update("username")}
           pattern="[a-zA-Z0-9_.]{3,30}"
           title="3 à 30 caractères : lettres, chiffres, _ ou ."
           required
         />
-        <AuthField label="Email" icon={Mail} type="email" value={form.email} onChange={update("email")} required />
+        <AuthField label="Email" type="email" value={form.email} onChange={update("email")} required />
         <AuthField
           label="Mot de passe"
-          icon={Lock}
           type="password"
           value={form.password}
           onChange={update("password")}
@@ -88,16 +92,16 @@ export default function RegisterPage() {
           required
         />
 
-        {error && <p className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-600">{error}</p>}
+        {error && <p className="alert-error">{error}</p>}
 
-        <button disabled={loading} className="btn-primary w-full py-3.5">
+        <button disabled={loading} className="btn-dark w-full py-3.5">
           {loading ? "Création…" : "Créer mon compte"}
         </button>
       </form>
 
-      <p className="mt-8 text-center text-sm text-muted">
+      <p className="mt-10 text-center text-xs text-muted">
         Déjà inscrit ?{" "}
-        <Link href="/login" className="font-medium text-brand">
+        <Link href="/login" className="font-semibold text-ink hover:underline">
           Connecte-toi
         </Link>
       </p>

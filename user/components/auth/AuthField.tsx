@@ -1,35 +1,41 @@
 "use client";
 
-import { useState } from "react";
+import { useId, useState } from "react";
 import { Eye, EyeOff } from "lucide-react";
-import type { LucideIcon } from "lucide-react";
 
 type Props = React.InputHTMLAttributes<HTMLInputElement> & {
   label: string;
-  icon: LucideIcon;
 };
 
-export default function AuthField({ label, icon: Icon, type = "text", ...props }: Props) {
+export default function AuthField({ label, type = "text", id, ...props }: Props) {
   const [visible, setVisible] = useState(false);
+  const autoId = useId();
+  const inputId = id ?? autoId;
   const isPassword = type === "password";
 
   return (
-    <label className="block space-y-2">
-      <span className="text-sm font-medium">{label}</span>
-      <span className="relative block">
-        <Icon className="absolute top-1/2 left-4 size-4 -translate-y-1/2 text-muted" />
-        <input {...props} type={isPassword && visible ? "text" : type} className="input rounded-xl py-3.5 pl-11" />
+    <div className="group">
+      <label htmlFor={inputId} className="text-xs text-muted transition group-focus-within:text-ink">
+        {label}
+      </label>
+      <div className="relative">
+        <input
+          {...props}
+          id={inputId}
+          type={isPassword && visible ? "text" : type}
+          className={`line-input ${isPassword ? "pr-9" : ""}`}
+        />
         {isPassword && (
           <button
             type="button"
-            tabIndex={-1}
             onClick={() => setVisible((v) => !v)}
-            className="absolute top-1/2 right-4 -translate-y-1/2 text-muted"
+            aria-label={visible ? "Masquer le mot de passe" : "Afficher le mot de passe"}
+            className="absolute top-1/2 right-0 flex size-8 -translate-y-1/2 items-center justify-center rounded-lg text-muted transition hover:text-ink"
           >
             {visible ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
           </button>
         )}
-      </span>
-    </label>
+      </div>
+    </div>
   );
 }
