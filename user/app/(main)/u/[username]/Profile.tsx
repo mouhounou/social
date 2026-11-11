@@ -77,7 +77,7 @@ export default function Profile({ username }: { username: string }) {
   const website = safeWebsite.replace(/^https?:\/\//i, "").replace(/\/$/, "");
 
   return (
-    <div className="mx-auto max-w-6xl space-y-6">
+    <div className="mx-auto  space-y-6">
       <section className="card overflow-hidden">
         <div className="relative h-36 bg-[#F3ECE3] sm:h-56 lg:h-64">
           <Image
@@ -143,7 +143,6 @@ export default function Profile({ username }: { username: string }) {
                 </>
               )}
             </div>
-
             <div className="flex gap-2 pb-1">
               {isMe ? (
                 <button
