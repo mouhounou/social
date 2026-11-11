@@ -32,11 +32,11 @@ function Visual() {
 
 export default function AuthLayout({ children }: LayoutProps<"/">) {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-slate-200/70 p-4 sm:p-8">
-      <div className="grid w-full max-w-5xl gap-4 rounded-[36px] bg-white p-3 shadow-[0_30px_80px_-30px_rgba(17,24,39,0.35)] lg:min-h-[640px] lg:grid-cols-2">
+    <div className="flex min-h-screen items-center justify-center bg-slate-200/70 p-4 sm:p-8 lg:h-screen lg:overflow-hidden">
+      <div className="grid w-full max-w-5xl gap-4 rounded-[36px] bg-white p-3 shadow-[0_30px_80px_-30px_rgba(17,24,39,0.35)] lg:h-full lg:max-h-[860px] lg:grid-cols-2">
         <Visual />
-        <main className="flex items-center justify-center px-4 py-10 sm:px-10">
-          <div className="w-full max-w-sm">
+        <main className="flex flex-col [scrollbar-width:thin] px-4 py-10 sm:px-10 lg:min-h-0 lg:overflow-y-auto">
+          <div className="m-auto w-full max-w-sm">
             <GuestOnly />
             <Logo className="mb-8 block text-center text-lg" />
             {children}
