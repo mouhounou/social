@@ -3,11 +3,11 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { useAuth } from "@/lib/auth";
+import { useAuth } from "@/hooks/useAuth";
 import { api } from "@/lib/api";
-import type { User } from "@/lib/types";
-import { DEFAULT_COVER } from "@/lib/images";
-import Avatar from "./Avatar";
+import type { User } from "@/types";
+import { DEFAULT_COVER } from "@/lib/constants";
+import Avatar from "@/components/ui/Avatar";
 
 export default function ProfileCard() {
   const { user, loading } = useAuth();

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { CATEGORIES } from "@/lib/categories";
+import { CATEGORIES } from "@/lib/constants";
 import { BookOpen, Camera, Cpu, Music, Palette, Plane, Shapes, Sparkles, Coffee } from "lucide-react";
 
 const icons: Record<string, { icon: typeof Palette; tone: string }> = {

@@ -5,14 +5,14 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Bookmark, EllipsisVertical, Heart, MessageCircle, Pencil, Send, Trash2, Users } from "lucide-react";
-import { useAuth } from "@/lib/auth";
-import { useOutsideClick } from "@/lib/useOutsideClick";
+import { useAuth } from "@/hooks/useAuth";
+import { useOutsideClick } from "@/hooks/useOutsideClick";
 import { api } from "@/lib/api";
-import { compact, timeAgo } from "@/lib/time";
-import type { Post } from "@/lib/types";
-import Avatar from "./Avatar";
-import CommentInput from "./CommentInput";
-import RichText from "./RichText";
+import { compact, timeAgo } from "@/utils/time";
+import type { Post } from "@/types";
+import Avatar from "@/components/ui/Avatar";
+import CommentInput from "@/components/post/CommentInput";
+import RichText from "@/components/ui/RichText";
 
 type Props = {
   post: Post;

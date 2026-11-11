@@ -4,11 +4,11 @@ import Link from "next/link";
 import { useRef, useState } from "react";
 import Image from "next/image";
 import { Earth, ImageIcon, Smile, Tag, Users, X } from "lucide-react";
-import { useAuth } from "@/lib/auth";
+import { useAuth } from "@/hooks/useAuth";
 import { api } from "@/lib/api";
-import type { Post } from "@/lib/types";
-import Avatar from "./Avatar";
-import { CATEGORIES } from "@/lib/categories";
+import type { Post } from "@/types";
+import Avatar from "@/components/ui/Avatar";
+import { CATEGORIES } from "@/lib/constants";
 
 export default function Composer({ onCreated }: { onCreated: (post: Post) => void }) {
   const { user } = useAuth();

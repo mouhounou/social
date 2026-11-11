@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { KeyRound } from "lucide-react";
-import RequireAuth from "@/components/RequireAuth";
+import RequireAuth from "@/components/auth/RequireAuth";
 import ProfileForm from "@/components/profile/ProfileForm";
 import { api } from "@/lib/api";
 

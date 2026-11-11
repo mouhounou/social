@@ -16,11 +16,11 @@ import {
   SquarePlus,
   X,
 } from "lucide-react";
-import { useAuth } from "@/lib/auth";
+import { useAuth } from "@/hooks/useAuth";
 import { api } from "@/lib/api";
-import { useOutsideClick } from "@/lib/useOutsideClick";
-import Avatar from "./Avatar";
-import Logo from "./Logo";
+import { useOutsideClick } from "@/hooks/useOutsideClick";
+import Avatar from "@/components/ui/Avatar";
+import Logo from "@/components/layout/Logo";
 
 const links = [
   { href: "/", icon: House, label: "Accueil" },

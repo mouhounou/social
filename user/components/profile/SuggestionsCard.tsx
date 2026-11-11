@@ -2,11 +2,11 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { useAuth } from "@/lib/auth";
+import { useAuth } from "@/hooks/useAuth";
 import { api } from "@/lib/api";
-import type { Suggestion } from "@/lib/types";
-import Avatar from "./Avatar";
-import FollowButton from "./FollowButton";
+import type { Suggestion } from "@/types";
+import Avatar from "@/components/ui/Avatar";
+import FollowButton from "@/components/profile/FollowButton";
 
 export default function SuggestionsCard() {
   const { user, loading } = useAuth();

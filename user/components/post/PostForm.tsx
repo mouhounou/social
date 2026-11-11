@@ -5,8 +5,8 @@ import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 import { ImageIcon, X } from "lucide-react";
 import { api } from "@/lib/api";
-import type { Post } from "@/lib/types";
-import { CATEGORIES } from "@/lib/categories";
+import type { Post } from "@/types";
+import { CATEGORIES } from "@/lib/constants";
 
 export default function PostForm({ post }: { post?: Post }) {
   const router = useRouter();

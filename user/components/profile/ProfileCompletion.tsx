@@ -1,5 +1,5 @@
 import { Circle, CircleCheck } from "lucide-react";
-import type { User } from "@/lib/types";
+import type { User } from "@/types";
 
 export default function ProfileCompletion({ user, onEdit }: { user: User; onEdit: () => void }) {
   const steps = [
