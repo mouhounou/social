@@ -8,6 +8,8 @@ user/      Front Next.js 16 (App Router, Tailwind 4)
 admin/     Back-office (à venir)
 ```
 
+Le modèle de données (MCD Looping, MLD et dictionnaire des données) est dans [`docs/analyse`](docs/analyse/analyse-donnees.md).
+
 ## Lancer en local
 
 ### MongoDB
