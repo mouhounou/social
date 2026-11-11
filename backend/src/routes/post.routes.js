@@ -15,7 +15,7 @@ router.delete("/:id", protect, ctrl.deletePost);
 router.post("/:id/like", protect, ctrl.likePost);
 router.post("/:id/save", protect, ctrl.savePost);
 
-router.get("/:id/comments", comments.listComments);
+router.get("/:id/comments", optionalAuth, comments.listComments);
 router.post("/:id/comments", protect, comments.addComment);
 
 module.exports = router;

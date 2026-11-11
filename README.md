@@ -31,6 +31,10 @@ pnpm dev               # http://localhost:5000
 
 Sans `SMTP_USER`, les emails ne partent pas : le code OTP est affiché dans la console de l'API, pratique en dev.
 
+La documentation interactive de l'API (Swagger) est sur http://localhost:5000/docs, et le document OpenAPI sur http://localhost:5000/docs.json. Dans Swagger, appelle `POST /auth/login` : le cookie de session est posé et les routes protégées marchent ensuite directement.
+
+`TRUST_PROXY` indique les proxys dont l'API accepte l'en-tête `X-Forwarded-For` : `loopback` pour le front Next en local, à adapter à l'hébergeur en production. Sans lui, tous les visiteurs partageraient la même limite de requêtes.
+
 ### Tests de l'API
 
 ```bash
@@ -84,6 +88,8 @@ Le rôle `reader` ou `author` se choisit à l'inscription. `admin` se donne dire
 3. `POST /api/auth/reset-password` `{ email, resetToken, password }` : change le mot de passe et reconnecte l'utilisateur.
 
 ## API
+
+Le détail des paramètres, corps de requête et réponses est dans Swagger (`/docs`). Résumé :
 
 | Méthode | Route                         | Accès          |
 | ------- | ----------------------------- | -------------- |
