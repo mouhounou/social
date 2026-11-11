@@ -47,6 +47,16 @@ npm install
 npm run dev            # http://localhost:3000
 ```
 
+Tests de bout en bout (navigateur), avec l'API et le front lancés :
+
+```bash
+cd user
+npx playwright install chromium   # une seule fois
+npm run test:e2e                  # E2E_URL=http://localhost:3000 par défaut
+```
+
+Ils créent leurs propres comptes (`e2e_auteur`, `e2e_lecteur`) et quelques articles dans la base de dev. Comme tout passe par la même adresse IP en local, les limites anti-abus de l'API (connexion, code OTP) peuvent se déclencher si on les relance beaucoup : redémarre l'API pour les remettre à zéro.
+
 Le front appelle `/api/*`, que Next réécrit vers `API_URL`. Le cookie de session est donc posé sur le même domaine que le front.
 
 ## Profil
