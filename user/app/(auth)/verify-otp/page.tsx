@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { ArrowLeft } from "lucide-react";
+import Turnstile, { type TurnstileHandle } from "@/components/auth/Turnstile";
 import { api } from "@/lib/api";
 import { getRecovery, setRecovery } from "@/utils/recovery";
 
@@ -17,6 +18,7 @@ const noEmailOnServer = () => "";
 export default function VerifyOtpPage() {
   const router = useRouter();
   const inputs = useRef<(HTMLInputElement | null)[]>([]);
+  const turnstile = useRef<TurnstileHandle>(null);
   const email = useSyncExternalStore(noSubscribe, recoveryEmail, noEmailOnServer);
   const [digits, setDigits] = useState<string[]>(Array(LENGTH).fill(""));
   const [error, setError] = useState("");
@@ -100,11 +102,16 @@ export default function VerifyOtpPage() {
     setError("");
     setInfo("");
     try {
-      await api("/auth/forgot-password", { method: "POST", body: { email } });
+      await api("/auth/forgot-password", {
+        method: "POST",
+        body: { email, ...(await turnstile.current?.payload()) },
+      });
       setInfo("Nouveau code envoyé.");
       setCooldown(RESEND_DELAY);
     } catch (err) {
       setError((err as Error).message);
+    } finally {
+      turnstile.current?.reset();
     }
   }
 
@@ -148,6 +155,9 @@ export default function VerifyOtpPage() {
             />
           ))}
         </div>
+
+        {/* Sert au renvoi du code ; invisible tant que le visiteur n'a rien à faire. */}
+        <Turnstile ref={turnstile} action="forgot-password" appearance="interaction-only" />
 
         {error && <p className="alert-error">{error}</p>}
         {info && <p className="alert-info">{info}</p>}
