@@ -97,6 +97,8 @@ Depuis sa page profil, l'utilisateur change directement sa couverture et son ava
 - Session dans un cookie `httpOnly`, `SameSite=Lax`, `Secure` hors développement ; JWT signé en HS256, invalidé après un changement ou une réinitialisation de mot de passe.
 - Limites anti-abus : par adresse IP sur toute l'API, et par compte sur la connexion (10 mots de passe faux) et la demande de code OTP (3 par email), même si l'attaquant change d'adresse IP.
 - En-têtes de sécurité (`helmet` côté API, `next.config.ts` côté front), site non intégrable dans une iframe, redirection après connexion limitée au site.
+- Anti-robots : l'inscription, la connexion et la demande de code passent par Cloudflare Turnstile (voir plus bas).
+- L'inscription ne confirme pas qu'un email a déjà un compte : le refus est le même message neutre, sans champ désigné. Le nom d'utilisateur, lui, est public (page de profil), donc « déjà pris » reste affiché.
 - Images acceptées : JPEG, PNG, WebP, GIF, AVIF (pas de SVG), 5 Mo au plus.
 - `pnpm test` contient une suite `security.test.js` qui vérifie chacun de ces points.
 
@@ -105,7 +107,20 @@ En production :
 - définis `NODE_ENV=production` : sans lui, le cookie n'est pas `Secure` et le code OTP s'affiche dans les journaux ;
 - utilise un `JWT_SECRET` d'au moins 32 caractères aléatoires (l'API refuse de démarrer sinon) ;
 - la doc Swagger est désactivée ; `API_DOCS=true` la réactive ;
-- les limites anti-abus sont gardées en mémoire : avec plusieurs instances de l'API, il faut un stockage partagé (Redis).
+- les limites anti-abus sont gardées en mémoire : avec plusieurs instances de l'API, il faut un stockage partagé (Redis) ;
+- renseigne `TURNSTILE_SECRET` et `TURNSTILE_HOSTNAMES` sur l'API, sinon la protection anti-robots reste inactive (un avertissement s'affiche au démarrage).
+
+### Anti-robots (Cloudflare Turnstile)
+
+Le widget est affiché sur l'inscription, la connexion et « mot de passe oublié » (et, caché, sur la page du code pour le renvoi). Le navigateur obtient un jeton à usage unique, l'envoie dans le champ `cf-turnstile-response`, et l'API le fait vérifier par Cloudflare avant de traiter la requête : jeton valide, émis pour la bonne action (`signup`, `login`, `forgot-password`) et pour un domaine autorisé. Sinon elle répond 403 avec `field: "turnstile"`.
+
+| Variable | Où | Rôle |
+| --- | --- | --- |
+| `TURNSTILE_SECRET` | API | Clé secrète du widget (tableau de bord Cloudflare → Turnstile). Vide = protection inactive. |
+| `TURNSTILE_HOSTNAMES` | API | Domaine(s) du site, séparés par des virgules, ex. `solola.app,www.solola.app`. Obligatoire avec le secret ; jamais `localhost` en production. |
+| `NEXT_PUBLIC_TURNSTILE_SITE_KEY` | Front | Facultatif : remplace la clé publique du widget (définie dans `user/lib/constants.ts`). |
+
+En développement, le front utilise la clé de test de Cloudflare (toujours validée) et l'API ne vérifie rien tant que `TURNSTILE_SECRET` est vide. Pour essayer la vérification en local, mets `TURNSTILE_SECRET=1x0000000000000000000000000000000AA` et `TURNSTILE_HOSTNAMES=localhost` ; les secrets `2x…AA` (toujours refusé) et `3x…AA` (jeton déjà utilisé) servent à tester les refus. Ces clés de test sont refusées quand `NODE_ENV=production`.
 
 ## Rôles
 

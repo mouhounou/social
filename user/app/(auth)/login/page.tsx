@@ -2,10 +2,11 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import AuthField from "@/components/auth/AuthField";
+import Turnstile, { type TurnstileHandle } from "@/components/auth/Turnstile";
 import { useAuth } from "@/hooks/useAuth";
-import { api } from "@/lib/api";
+import { api, type ApiError } from "@/lib/api";
 import { collectErrors, focusField } from "@/utils/validation";
 import type { User } from "@/types";
 
@@ -28,7 +29,9 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [errors, setErrors] = useState<{ identifier?: string; password?: string }>({});
   const [error, setError] = useState("");
+  const [robotError, setRobotError] = useState("");
   const [loading, setLoading] = useState(false);
+  const turnstile = useRef<TurnstileHandle>(null);
 
   async function submit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -38,19 +41,23 @@ export default function LoginPage() {
     });
     setErrors(found);
     setError("");
+    setRobotError("");
     if (first) return focusField(e.currentTarget, first);
 
     setLoading(true);
     try {
       const { user } = await api<{ user: User }>("/auth/login", {
         method: "POST",
-        body: { identifier, password },
+        body: { identifier, password, ...(await turnstile.current?.payload()) },
       });
       setUser(user);
       router.replace(safeNext());
       router.refresh();
     } catch (err) {
-      setError((err as Error).message);
+      const { message, field } = err as ApiError;
+      turnstile.current?.reset();
+      if (field === "turnstile") setRobotError(message);
+      else setError(message);
       setLoading(false);
     }
   }
@@ -93,6 +100,8 @@ export default function LoginPage() {
             Mot de passe oublié ?
           </Link>
         </div>
+
+        <Turnstile ref={turnstile} action="login" error={robotError} />
 
         {error && <p className="alert-error">{error}</p>}
 

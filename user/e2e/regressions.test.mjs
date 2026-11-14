@@ -1,6 +1,6 @@
 import { describe, it, before, after } from "node:test";
 import assert from "node:assert/strict";
-import { FRONT, PNG, api, apiLogin, close, ensureUser, launch, login, page, PASSWORD } from "./helpers.mjs";
+import { FRONT, PNG, TURNSTILE_FIELD, api, apiLogin, close, ensureUser, launch, login, page, PASSWORD } from "./helpers.mjs";
 
 let authorCookie;
 let firstPost;
@@ -106,10 +106,72 @@ describe("inscription", () => {
     const body = JSON.parse((await request).postData());
     assert.equal(body.username, "le_boss");
     assert.equal(body.password, "(Rh*5");
+    assert.equal(body[TURNSTILE_FIELD], "jeton-e2e-1");
     await p.getByText("Ce nom d'utilisateur est déjà pris").waitFor();
     assert.equal(await username.getAttribute("aria-invalid"), "true");
     assert.equal(await p.locator('form [aria-invalid="true"]').count(), 1);
   });
+});
+
+describe("anti-robots et confidentialité des comptes", () => {
+  async function fillRegister(p, username, email) {
+    await p.goto(`${FRONT}/register`);
+    await p.waitForLoadState("networkidle");
+    await p.getByLabel("Nom complet").fill("Curieux");
+    await p.getByLabel("Nom d'utilisateur").fill(username);
+    await p.getByLabel("Email").fill(email);
+    await p.getByLabel("Mot de passe", { exact: true }).fill("abcde");
+  }
+
+  it("ne dit pas qu'un email a déjà un compte", async () => {
+    const p = await page();
+    await fillRegister(p, `curieux_${Date.now().toString(36)}`, "e2e_lecteur@e2e.test");
+    await p.getByRole("button", { name: "Créer mon compte" }).click();
+    await p.getByText("Impossible de créer ce compte avec ces informations").waitFor();
+    assert.equal(await p.locator('form [aria-invalid="true"]').count(), 0);
+    assert.doesNotMatch(await p.locator("form").innerText(), /déjà utilisé/i);
+    assert.equal(p.url(), `${FRONT}/register`);
+  });
+
+  it("signale un refus anti-robot sous le widget, puis repart avec un jeton neuf", async () => {
+    const p = await page();
+    const tokens = [];
+    await p.route("**/api/auth/register", (r) => {
+      tokens.push(JSON.parse(r.request().postData())[TURNSTILE_FIELD]);
+      r.fulfill({ status: 403, json: { message: "La vérification anti-robot n'a pas abouti.", field: "turnstile" } });
+    });
+    await fillRegister(p, "robot", "robot@e2e.test");
+    await p.getByRole("button", { name: "Créer mon compte" }).click();
+    await p.getByText("La vérification anti-robot n'a pas abouti.").waitFor();
+    assert.equal(await p.locator('form [aria-invalid="true"]').count(), 0);
+    await p.getByRole("button", { name: "Créer mon compte" }).click();
+    while (tokens.length < 2) await p.waitForTimeout(50);
+    assert.deepEqual(tokens, ["jeton-e2e-1", "jeton-e2e-2"]);
+  });
+
+  for (const [label, path, fill, button, endpoint] of [
+    [
+      "la connexion",
+      "/login",
+      async (p) => {
+        await p.getByLabel("Email ou nom d'utilisateur").fill("e2e_lecteur");
+        await p.getByLabel("Mot de passe", { exact: true }).fill(PASSWORD);
+      },
+      "Se connecter",
+      "/api/auth/login",
+    ],
+    ["la demande de code", "/forgot-password", (p) => p.getByLabel("Email").fill("personne@e2e.test"), "Envoyer le code", "/api/auth/forgot-password"],
+  ]) {
+    it(`joint le jeton anti-robot à ${label}`, async () => {
+      const p = await page();
+      await p.goto(`${FRONT}${path}`);
+      await p.waitForLoadState("networkidle");
+      await fill(p);
+      const request = p.waitForRequest((r) => r.url().includes(endpoint));
+      await p.getByRole("button", { name: button }).click();
+      assert.equal(JSON.parse((await request).postData())[TURNSTILE_FIELD], "jeton-e2e-1");
+    });
+  }
 });
 
 describe("redirection après connexion", () => {

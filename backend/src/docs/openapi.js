@@ -22,6 +22,16 @@ const common = {
 };
 const pick = (...codes) => Object.fromEntries(codes.map((c) => [c, common[c]]));
 
+const turnstileToken = {
+  "cf-turnstile-response": {
+    type: "string",
+    maxLength: 2048,
+    description:
+      "Jeton du widget Cloudflare Turnstile, à usage unique. Obligatoire quand `TURNSTILE_SECRET` est configuré " +
+      "sur l'API ; sans lui, la réponse est un 403 avec `field: \"turnstile\"`.",
+  },
+};
+
 const postFields = {
   title: { type: "string", maxLength: 150, example: "Mon carnet de croquis" },
   content: { type: "string", maxLength: 10000, example: "Sept jours, sept pages. #art #aquarelle" },
@@ -43,6 +53,7 @@ const credentials = {
   properties: {
     identifier: { type: "string", description: "Email ou nom d'utilisateur", example: "reinhard" },
     password: { type: "string", example: "secret1" },
+    ...turnstileToken,
   },
 };
 
@@ -212,12 +223,18 @@ module.exports = {
             email: { type: "string", format: "email", example: "reinhard@solola.dev" },
             password: { type: "string", minLength: 5, maxLength: 72, example: "secret1" },
             role: { type: "string", enum: ["reader", "author"], default: "reader" },
+            ...turnstileToken,
           },
         }),
         responses: {
           201: ok("Compte créé et connecté", ref("Session")),
-          409: error("Email ou nom d'utilisateur déjà pris"),
-          ...pick(400, 429),
+          400: error(
+            "Données invalides, ou inscription impossible avec ces informations " +
+              "(le message ne dit pas si l'email a déjà un compte)"
+          ),
+          403: error("Vérification anti-robot échouée"),
+          409: error("Nom d'utilisateur déjà pris"),
+          ...pick(429),
         },
       },
     },
@@ -229,7 +246,7 @@ module.exports = {
         responses: {
           200: ok("Connecté", ref("Session")),
           401: error("Identifiants incorrects"),
-          403: error("Compte suspendu"),
+          403: error("Compte suspendu, ou vérification anti-robot échouée"),
           ...pick(400, 429),
         },
       },
@@ -270,10 +287,11 @@ module.exports = {
         requestBody: body({
           type: "object",
           required: ["email"],
-          properties: { email: { type: "string", format: "email" } },
+          properties: { email: { type: "string", format: "email" }, ...turnstileToken },
         }),
         responses: {
           200: ok("Demande prise en compte", ref("Message")),
+          403: error("Vérification anti-robot échouée"),
           502: error("L'email n'a pas pu être envoyé"),
           ...pick(400, 429),
         },
