@@ -2,7 +2,7 @@ const User = require("../models/User");
 const Post = require("../models/Post");
 const Notification = require("../models/Notification");
 const AppError = require("../utils/AppError");
-const { optionalText } = require("../utils/input");
+const { optionalText, PASSWORD_MIN } = require("../utils/input");
 const { uploadBuffer, removeImage } = require("../config/cloudinary");
 const { signToken, setAuthCookie } = require("../utils/token");
 
@@ -59,12 +59,16 @@ async function changePassword(req, res) {
   if (typeof currentPassword !== "string" || typeof newPassword !== "string" || !currentPassword || !newPassword) {
     throw new AppError("Remplis les deux champs");
   }
-  if (newPassword.length < 6) throw new AppError("Le nouveau mot de passe doit faire au moins 6 caractères");
-  if (Buffer.byteLength(newPassword) > 72) throw new AppError("Le mot de passe est trop long (72 caractères max)");
+  if (newPassword.length < PASSWORD_MIN) {
+    throw new AppError(`Le nouveau mot de passe doit faire au moins ${PASSWORD_MIN} caractères`, 400, "newPassword");
+  }
+  if (Buffer.byteLength(newPassword) > 72) {
+    throw new AppError("Le mot de passe est trop long (72 caractères max)", 400, "newPassword");
+  }
 
   const user = await User.findById(req.user._id).select("+password");
   if (!(await user.comparePassword(currentPassword))) {
-    throw new AppError("Mot de passe actuel incorrect", 401);
+    throw new AppError("Mot de passe actuel incorrect", 401, "currentPassword");
   }
 
   user.password = newPassword;

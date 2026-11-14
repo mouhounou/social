@@ -72,7 +72,14 @@ module.exports = {
     schemas: {
       Error: {
         type: "object",
-        properties: { message: { type: "string", example: "Connecte-toi pour continuer" } },
+        properties: {
+          message: { type: "string", example: "Connecte-toi pour continuer" },
+          field: {
+            type: "string",
+            description: "Champ du formulaire en cause, quand l'erreur en vise un",
+            example: "username",
+          },
+        },
       },
       Message: { type: "object", properties: { message: { type: "string" } } },
       Author: {
@@ -203,7 +210,7 @@ module.exports = {
             name: { type: "string", example: "Reinhard Van Zry" },
             username: { type: "string", pattern: "^[a-zA-Z0-9_.]{3,30}$", example: "reinhard" },
             email: { type: "string", format: "email", example: "reinhard@solola.dev" },
-            password: { type: "string", minLength: 6, maxLength: 72, example: "secret1" },
+            password: { type: "string", minLength: 5, maxLength: 72, example: "secret1" },
             role: { type: "string", enum: ["reader", "author"], default: "reader" },
           },
         }),
@@ -302,7 +309,7 @@ module.exports = {
           properties: {
             email: { type: "string", format: "email" },
             resetToken: { type: "string" },
-            password: { type: "string", minLength: 6, maxLength: 72 },
+            password: { type: "string", minLength: 5, maxLength: 72 },
           },
         }),
         responses: { 200: ok("Mot de passe changé, connecté", ref("Session")), ...pick(400, 403, 404, 429) },
@@ -519,7 +526,7 @@ module.exports = {
           required: ["currentPassword", "newPassword"],
           properties: {
             currentPassword: { type: "string" },
-            newPassword: { type: "string", minLength: 6, maxLength: 72 },
+            newPassword: { type: "string", minLength: 5, maxLength: 72 },
           },
         }),
         responses: {
