@@ -6,7 +6,18 @@ import { useState } from "react";
 import { BookOpen, PenLine } from "lucide-react";
 import AuthField from "@/components/auth/AuthField";
 import { useAuth } from "@/hooks/useAuth";
-import { api } from "@/lib/api";
+import { api, type ApiError } from "@/lib/api";
+import {
+  PASSWORD_MIN,
+  USERNAME_HINT,
+  collectErrors,
+  emailError,
+  focusField,
+  nameError,
+  normalizeUsername,
+  passwordError,
+  usernameError,
+} from "@/utils/validation";
 import type { Role, User } from "@/types";
 
 const roles = [
@@ -14,41 +25,86 @@ const roles = [
   { value: "author", label: "Auteur", hint: "Je publie aussi mes créations", icon: PenLine },
 ] as const;
 
+type Field = "name" | "username" | "email" | "password";
+
+const validators: Record<Field, (value: string) => string> = {
+  name: nameError,
+  username: usernameError,
+  email: emailError,
+  password: passwordError,
+};
+
+const isField = (field?: string): field is Field => !!field && field in validators;
+
 export default function RegisterPage() {
   const router = useRouter();
   const { setUser } = useAuth();
-  const [form, setForm] = useState({ name: "", username: "", email: "", password: "" });
+  const [form, setForm] = useState<Record<Field, string>>({ name: "", username: "", email: "", password: "" });
+  const [errors, setErrors] = useState<Partial<Record<Field, string>>>({});
   const [role, setRole] = useState<Role>("reader");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const update = (field: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) =>
-    setForm((f) => ({ ...f, [field]: e.target.value }));
+  // Un champ signalé en rouge est revérifié à chaque frappe : le rouge part dès que la saisie est bonne.
+  const update = (field: Field) => (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { value } = e.target;
+    setForm((f) => ({ ...f, [field]: value }));
+    if (errors[field]) setErrors((errs) => ({ ...errs, [field]: validators[field](value) }));
+  };
 
-  async function submit(e: React.FormEvent) {
+  const blur = (field: Field) => () => {
+    const value = form[field];
+    if (field === "username") setForm((f) => ({ ...f, username: normalizeUsername(value) }));
+    if (value.trim()) setErrors((errs) => ({ ...errs, [field]: validators[field](value) }));
+  };
+
+  async function submit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    const formEl = e.currentTarget;
+    const values = {
+      name: form.name.trim(),
+      username: normalizeUsername(form.username),
+      email: form.email.trim(),
+      password: form.password,
+    };
+    const { errors: found, first } = collectErrors({
+      name: nameError(form.name),
+      username: usernameError(form.username),
+      email: emailError(form.email),
+      password: passwordError(form.password),
+    });
+
+    setForm(values);
+    setErrors(found);
     setError("");
+    if (first) return focusField(formEl, first);
+
     setLoading(true);
     try {
       const { user } = await api<{ user: User }>("/auth/register", {
         method: "POST",
-        body: { ...form, role },
+        body: { ...values, role },
       });
       setUser(user);
       router.replace("/");
       router.refresh();
     } catch (err) {
-      setError((err as Error).message);
+      const { message, field } = err as ApiError;
       setLoading(false);
+      if (!isField(field)) return setError(message);
+      setErrors({ [field]: message });
+      focusField(formEl, field);
     }
   }
+
+  const handle = normalizeUsername(form.username);
 
   return (
     <>
       <h1 className="text-center text-3xl font-bold tracking-tight">Crée ton compte</h1>
       <p className="mt-2 text-center text-xs text-muted">Ça prend moins d&apos;une minute.</p>
 
-      <form onSubmit={submit} className="mt-10 space-y-6">
+      <form onSubmit={submit} noValidate className="mt-10 space-y-6">
         <div className="grid grid-cols-2 gap-3">
           {roles.map(({ value, label, hint, icon: Icon }) => (
             <button
@@ -72,24 +128,59 @@ export default function RegisterPage() {
           ))}
         </div>
 
-        <AuthField label="Nom complet" value={form.name} onChange={update("name")} required />
+        <AuthField
+          label="Nom complet"
+          name="name"
+          value={form.name}
+          onChange={update("name")}
+          onBlur={blur("name")}
+          error={errors.name}
+          maxLength={60}
+          autoComplete="name"
+        />
         <AuthField
           label="Nom d'utilisateur"
+          name="username"
           value={form.username}
           onChange={update("username")}
-          pattern="[a-zA-Z0-9_.]{3,30}"
-          title="3 à 30 caractères : lettres, chiffres, _ ou ."
-          required
+          onBlur={blur("username")}
+          error={errors.username}
+          hint={
+            handle && handle !== form.username ? (
+              <>
+                Ton identifiant sera <span className="font-medium text-ink">@{handle}</span>
+              </>
+            ) : (
+              USERNAME_HINT
+            )
+          }
+          autoComplete="username"
+          autoCapitalize="none"
+          autoCorrect="off"
+          spellCheck={false}
         />
-        <AuthField label="Email" type="email" value={form.email} onChange={update("email")} required />
+        <AuthField
+          label="Email"
+          name="email"
+          type="email"
+          value={form.email}
+          onChange={update("email")}
+          onBlur={blur("email")}
+          error={errors.email}
+          autoComplete="email"
+          autoCapitalize="none"
+          autoCorrect="off"
+        />
         <AuthField
           label="Mot de passe"
+          name="password"
           type="password"
           value={form.password}
           onChange={update("password")}
-          minLength={6}
+          onBlur={blur("password")}
+          error={errors.password}
+          hint={`${PASSWORD_MIN} caractères minimum, à toi de choisir`}
           autoComplete="new-password"
-          required
         />
 
         {error && <p className="alert-error">{error}</p>}
