@@ -27,5 +27,6 @@ function tagList(value) {
 }
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const PASSWORD_MIN = 5;
 
-module.exports = { text, optionalText, positiveInt, tagList, MAX_TAGS, EMAIL_RE };
+module.exports = { text, optionalText, positiveInt, tagList, MAX_TAGS, EMAIL_RE, PASSWORD_MIN };

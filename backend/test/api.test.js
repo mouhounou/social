@@ -58,12 +58,28 @@ describe("inscription et connexion", () => {
   it("valide l'email, le mot de passe et l'unicité", async () => {
     const bad = await guest.post("/auth/register", { name: "X", username: "xx_1", email: "pas-un-email", password: "secret1" });
     assert.equal(bad.status, 400);
-    const short = await guest.post("/auth/register", { name: "X", username: "xx_2", email: "x2@test.dev", password: "123" });
+    assert.equal(bad.data.field, "email");
+    const short = await guest.post("/auth/register", { name: "X", username: "xx_2", email: "x2@test.dev", password: "1234" });
     assert.equal(short.status, 400);
+    assert.equal(short.data.field, "password");
     const long = await guest.post("/auth/register", { name: "X", username: "xx_3", email: "x3@test.dev", password: "a".repeat(80) });
     assert.equal(long.status, 400);
+    const spaced = await guest.post("/auth/register", { name: "X", username: "Le Boss", email: "x5@test.dev", password: "secret1" });
+    assert.equal(spaced.status, 400);
+    assert.equal(spaced.data.field, "username");
     const dup = await guest.post("/auth/register", { name: "X", username: "auteur", email: "x4@test.dev", password: "secret1" });
     assert.equal(dup.status, 409);
+    assert.equal(dup.data.field, "username");
+    const dupMail = await guest.post("/auth/register", { name: "X", username: "xx_6", email: "auteur@test.dev", password: "secret1" });
+    assert.equal(dupMail.status, 409);
+    assert.equal(dupMail.data.field, "email");
+  });
+
+  it("accepte n'importe quel mot de passe de 5 caractères ou plus", async () => {
+    const c = client();
+    const res = await c.post("/auth/register", { name: "Court", username: "court", email: "court@test.dev", password: "abcde" });
+    assert.equal(res.status, 201);
+    assert.equal((await client().post("/auth/login", { identifier: "court", password: "abcde" })).status, 200);
   });
 
   it("ne laisse pas s'inscrire en admin", async () => {
@@ -246,7 +262,12 @@ describe("profil", () => {
     const c = await signup("change");
     const stale = client();
     stale.cookie = c.cookie;
-    assert.equal((await c.patch("/users/me/password", { currentPassword: "faux", newPassword: "secret2" })).status, 401);
+    const wrong = await c.patch("/users/me/password", { currentPassword: "faux", newPassword: "secret2" });
+    assert.equal(wrong.status, 401);
+    assert.equal(wrong.data.field, "currentPassword");
+    const short = await c.patch("/users/me/password", { currentPassword: "secret1", newPassword: "1234" });
+    assert.equal(short.status, 400);
+    assert.equal(short.data.field, "newPassword");
     await new Promise((r) => setTimeout(r, 1100));
     assert.equal((await c.patch("/users/me/password", { currentPassword: "secret1", newPassword: "secret2" })).status, 200);
     assert.equal((await c.get("/auth/session")).data.user?.username, "change");
