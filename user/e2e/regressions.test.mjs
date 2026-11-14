@@ -66,6 +66,52 @@ describe("session", () => {
   });
 });
 
+describe("inscription", () => {
+  async function registerPage() {
+    const p = await page();
+    await p.goto(`${FRONT}/register`);
+    await p.waitForLoadState("networkidle");
+    return p;
+  }
+
+  it("signale en rouge chaque champ fautif, puis le libère dès que la saisie est bonne", async () => {
+    const p = await registerPage();
+    const invalid = p.locator('form [aria-invalid="true"]');
+    const password = p.getByLabel("Mot de passe", { exact: true });
+    await p.getByRole("button", { name: "Créer mon compte" }).click();
+    assert.equal(await invalid.count(), 4);
+    assert.ok(await p.getByLabel("Nom complet").evaluate((el) => el === document.activeElement));
+    await password.fill("abcd");
+    await p.getByText("Au moins 5 caractères", { exact: true }).waitFor();
+    await password.fill("abcde");
+    assert.equal(await password.getAttribute("aria-invalid"), null);
+    assert.equal(await invalid.count(), 3);
+  });
+
+  it("adapte « Le Boss » au lieu de le refuser, et pose l'erreur du serveur sur le bon champ", async () => {
+    const p = await registerPage();
+    await p.route("**/api/auth/register", (r) =>
+      r.fulfill({ status: 409, json: { message: "Ce nom d'utilisateur est déjà pris", field: "username" } })
+    );
+    const request = p.waitForRequest((r) => r.url().includes("/api/auth/register"));
+    const username = p.getByLabel("Nom d'utilisateur");
+    await p.getByLabel("Nom complet").fill("Le Boss");
+    await username.fill("Le Boss");
+    await p.getByText("Ton identifiant sera @le_boss").waitFor();
+    await p.getByLabel("Email").fill("boss@e2e.test");
+    assert.equal(await username.inputValue(), "le_boss");
+    await p.getByLabel("Mot de passe", { exact: true }).fill("(Rh*5");
+    await p.getByRole("button", { name: "Créer mon compte" }).click();
+
+    const body = JSON.parse((await request).postData());
+    assert.equal(body.username, "le_boss");
+    assert.equal(body.password, "(Rh*5");
+    await p.getByText("Ce nom d'utilisateur est déjà pris").waitFor();
+    assert.equal(await username.getAttribute("aria-invalid"), "true");
+    assert.equal(await p.locator('form [aria-invalid="true"]').count(), 1);
+  });
+});
+
 describe("redirection après connexion", () => {
   for (const next of ["/%5Cexample.org", "/%5C%5Cexample.org", "/%09/example.org", "https://example.org"]) {
     it(`reste sur le site avec next=${decodeURIComponent(next)}`, async () => {
@@ -73,7 +119,7 @@ describe("redirection après connexion", () => {
       await p.route("**://example.org/**", (r) => r.fulfill({ body: "externe" }));
       await p.goto(`${FRONT}/login?next=${next}`);
       await p.getByLabel("Email ou nom d'utilisateur").fill("e2e_lecteur");
-      await p.getByLabel("Mot de passe").fill(PASSWORD);
+      await p.getByLabel("Mot de passe", { exact: true }).fill(PASSWORD);
       await p.getByRole("button", { name: "Se connecter" }).click();
       await p.waitForURL(`${FRONT}/`);
     });
@@ -83,7 +129,7 @@ describe("redirection après connexion", () => {
     const p = await page();
     await p.goto(`${FRONT}/login?next=%2Fsaved`);
     await p.getByLabel("Email ou nom d'utilisateur").fill("e2e_lecteur");
-    await p.getByLabel("Mot de passe").fill(PASSWORD);
+    await p.getByLabel("Mot de passe", { exact: true }).fill(PASSWORD);
     await p.getByRole("button", { name: "Se connecter" }).click();
     await p.waitForURL(`${FRONT}/saved`);
   });

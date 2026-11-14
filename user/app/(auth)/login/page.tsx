@@ -6,6 +6,7 @@ import { useState } from "react";
 import AuthField from "@/components/auth/AuthField";
 import { useAuth } from "@/hooks/useAuth";
 import { api } from "@/lib/api";
+import { collectErrors, focusField } from "@/utils/validation";
 import type { User } from "@/types";
 
 function safeNext() {
@@ -25,12 +26,20 @@ export default function LoginPage() {
   const { setUser } = useAuth();
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
+  const [errors, setErrors] = useState<{ identifier?: string; password?: string }>({});
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  async function submit(e: React.FormEvent) {
+  async function submit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    const { errors: found, first } = collectErrors({
+      identifier: identifier.trim() ? "" : "Indique ton email ou ton nom d'utilisateur",
+      password: password ? "" : "Indique ton mot de passe",
+    });
+    setErrors(found);
     setError("");
+    if (first) return focusField(e.currentTarget, first);
+
     setLoading(true);
     try {
       const { user } = await api<{ user: User }>("/auth/login", {
@@ -51,21 +60,32 @@ export default function LoginPage() {
       <h1 className="text-center text-3xl font-bold tracking-tight">Content de te revoir</h1>
       <p className="mt-2 text-center text-xs text-muted">Connecte-toi pour retrouver ton fil.</p>
 
-      <form onSubmit={submit} className="mt-10 space-y-6">
+      <form onSubmit={submit} noValidate className="mt-10 space-y-6">
         <AuthField
           label="Email ou nom d'utilisateur"
+          name="identifier"
           value={identifier}
-          onChange={(e) => setIdentifier(e.target.value)}
+          onChange={(e) => {
+            setIdentifier(e.target.value);
+            setErrors((errs) => ({ ...errs, identifier: "" }));
+          }}
+          error={errors.identifier}
           autoComplete="username"
-          required
+          autoCapitalize="none"
+          autoCorrect="off"
+          spellCheck={false}
         />
         <AuthField
           label="Mot de passe"
+          name="password"
           type="password"
           value={password}
-          onChange={(e) => setPassword(e.target.value)}
+          onChange={(e) => {
+            setPassword(e.target.value);
+            setErrors((errs) => ({ ...errs, password: "" }));
+          }}
+          error={errors.password}
           autoComplete="current-password"
-          required
         />
 
         <div className="-mt-2 text-right">

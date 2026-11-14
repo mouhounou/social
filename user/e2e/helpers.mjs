@@ -59,7 +59,7 @@ export async function page() {
 export async function login(p, username, password = PASSWORD) {
   await p.goto(`${FRONT}/login`);
   await p.getByLabel("Email ou nom d'utilisateur").fill(username);
-  await p.getByLabel("Mot de passe").fill(password);
+  await p.getByLabel("Mot de passe", { exact: true }).fill(password);
   await p.getByRole("button", { name: "Se connecter" }).click();
   await p.waitForURL(`${FRONT}/`);
 }
