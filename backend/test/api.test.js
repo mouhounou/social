@@ -70,9 +70,14 @@ describe("inscription et connexion", () => {
     const dup = await guest.post("/auth/register", { name: "X", username: "auteur", email: "x4@test.dev", password: "secret1" });
     assert.equal(dup.status, 409);
     assert.equal(dup.data.field, "username");
-    const dupMail = await guest.post("/auth/register", { name: "X", username: "xx_6", email: "auteur@test.dev", password: "secret1" });
-    assert.equal(dupMail.status, 409);
-    assert.equal(dupMail.data.field, "email");
+  });
+
+  it("ne confirme pas qu'un email a déjà un compte", async () => {
+    const res = await guest.post("/auth/register", { name: "X", username: "xx_6", email: "auteur@test.dev", password: "secret1" });
+    assert.equal(res.status, 400);
+    assert.equal(res.data.field, undefined);
+    assert.doesNotMatch(res.data.message, /e-?mail|adresse|utilisé/i);
+    assert.equal((await client().post("/auth/login", { identifier: "xx_6", password: "secret1" })).status, 401);
   });
 
   it("accepte n'importe quel mot de passe de 5 caractères ou plus", async () => {

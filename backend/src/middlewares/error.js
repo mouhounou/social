@@ -18,9 +18,16 @@ function errorHandler(err, req, res, next) {
     status = 400;
     message = "Identifiant invalide";
   } else if (err.code === 11000) {
-    status = 409;
     [field] = Object.keys(err.keyValue);
-    message = field === "email" ? "Cet email est déjà utilisé" : "Ce nom d'utilisateur est déjà pris";
+    if (field === "email") {
+      // Ne confirme pas qu'une adresse a déjà un compte : message neutre, sans champ désigné.
+      status = 400;
+      field = undefined;
+      message = "Impossible de créer ce compte avec ces informations. Si tu es déjà inscrit, connecte-toi.";
+    } else {
+      status = 409;
+      message = "Ce nom d'utilisateur est déjà pris";
+    }
   } else if (err.name === "MulterError") {
     status = 400;
     message = err.code === "LIMIT_FILE_SIZE" ? "Image trop lourde (5 Mo max)" : "Envoi de fichier invalide";
