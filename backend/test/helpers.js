@@ -3,6 +3,7 @@ process.env.JWT_SECRET ||= "test-secret";
 process.env.MONGO_URI = process.env.MONGO_URI_TEST || "mongodb://127.0.0.1:27017/solola_test";
 delete process.env.SMTP_USER;
 delete process.env.CLOUDINARY_API_KEY;
+delete process.env.TURNSTILE_SECRET;
 
 const mongoose = require("mongoose");
 const mailer = require("../src/config/mailer");

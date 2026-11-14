@@ -35,6 +35,25 @@ export async function ensureUser(username, role = "reader") {
   return res.headers.get("set-cookie").split(";")[0];
 }
 
+// Faux widget Turnstile : les tests ne dépendent pas de Cloudflare. Chaque jeton ne sert qu'une fois,
+// d'où le numéro qui change à chaque demande.
+export const TURNSTILE_FIELD = "cf-turnstile-response";
+const FAKE_TURNSTILE = `window.turnstile = {
+  count: 0,
+  render(container, options) {
+    this.options = options;
+    this.issue();
+    return "widget";
+  },
+  issue() {
+    setTimeout(() => this.options.callback("jeton-e2e-" + ++this.count), 20);
+  },
+  reset() {
+    this.issue();
+  },
+  remove() {},
+};`;
+
 let browser;
 
 export async function launch() {
@@ -47,6 +66,9 @@ export async function close() {
 
 export async function page() {
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  await context.route("https://challenges.cloudflare.com/**", (r) =>
+    r.fulfill({ contentType: "text/javascript", body: FAKE_TURNSTILE })
+  );
   const p = await context.newPage();
   p.errors = [];
   p.on("pageerror", (e) => p.errors.push(e.message));

@@ -2,9 +2,10 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { BookOpen, PenLine } from "lucide-react";
 import AuthField from "@/components/auth/AuthField";
+import Turnstile, { type TurnstileHandle } from "@/components/auth/Turnstile";
 import { useAuth } from "@/hooks/useAuth";
 import { api, type ApiError } from "@/lib/api";
 import {
@@ -43,7 +44,9 @@ export default function RegisterPage() {
   const [errors, setErrors] = useState<Partial<Record<Field, string>>>({});
   const [role, setRole] = useState<Role>("reader");
   const [error, setError] = useState("");
+  const [robotError, setRobotError] = useState("");
   const [loading, setLoading] = useState(false);
+  const turnstile = useRef<TurnstileHandle>(null);
 
   // Un champ signalé en rouge est revérifié à chaque frappe : le rouge part dès que la saisie est bonne.
   const update = (field: Field) => (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -77,13 +80,14 @@ export default function RegisterPage() {
     setForm(values);
     setErrors(found);
     setError("");
+    setRobotError("");
     if (first) return focusField(formEl, first);
 
     setLoading(true);
     try {
       const { user } = await api<{ user: User }>("/auth/register", {
         method: "POST",
-        body: { ...values, role },
+        body: { ...values, role, ...(await turnstile.current?.payload()) },
       });
       setUser(user);
       router.replace("/");
@@ -91,6 +95,8 @@ export default function RegisterPage() {
     } catch (err) {
       const { message, field } = err as ApiError;
       setLoading(false);
+      turnstile.current?.reset();
+      if (field === "turnstile") return setRobotError(message);
       if (!isField(field)) return setError(message);
       setErrors({ [field]: message });
       focusField(formEl, field);
@@ -182,6 +188,8 @@ export default function RegisterPage() {
           hint={`${PASSWORD_MIN} caractères minimum, à toi de choisir`}
           autoComplete="new-password"
         />
+
+        <Turnstile ref={turnstile} action="signup" error={robotError} />
 
         {error && <p className="alert-error">{error}</p>}
 
