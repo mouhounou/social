@@ -62,15 +62,15 @@ user/
   app/          routes (App Router) et layouts : (auth) et (main)
   components/
     layout/     Navbar, Logo, Shortcuts
-    ui/         Avatar, Modal, Spinner, RichText
+    ui/         Avatar, Modal, Spinner, RichText, Pagination
     auth/       AuthField, RequireAuth, GuestOnly
-    post/       Feed, PostCard, PostForm, Composer, CommentInput, CategoryChips,
-                ParagraphsEditor, Paragraphs, MediaView
+    post/       Feed (fil infini), PostGrid + PostTile (grille paginée), PostCard, PostForm,
+                Composer, CommentInput, CategoryChips, ParagraphsEditor, Paragraphs, MediaView
     profile/    ProfileCard, ProfileForm, FollowButton, SuggestionsCard...
     notification/ ActivityCard
     providers/  AuthInitializer (charge la session au démarrage)
   store/        stores zustand (authStore)
-  hooks/        useAuth, useOutsideClick
+  hooks/        useAuth, useOutsideClick, usePostReactions (like et enregistrement)
   lib/          axios.ts (instance + erreurs), api.ts (helper), constants.ts,
                 media.ts (liens vidéo, limites), draft.ts (brouillon du fil vers /posts/new)
   utils/        time, query, recovery
@@ -88,6 +88,26 @@ npm run test:e2e                  # E2E_URL=http://localhost:3000 par défaut
 Ils créent leurs propres comptes (`e2e_auteur`, `e2e_lecteur`) et quelques articles dans la base de dev. Comme tout passe par la même adresse IP en local, les limites anti-abus de l'API (connexion, code OTP) peuvent se déclencher si on les relance beaucoup : redémarre l'API pour les remettre à zéro.
 
 Le front appelle `/api/*`, que Next réécrit vers `API_URL`. Le cookie de session est donc posé sur le même domaine que le front.
+
+## Abonnés et abonnements
+
+Sur un profil, « Abonnés » et « Abonnements » ouvrent une fenêtre à deux onglets, avec recherche, badge « Te suit » et un bouton « Suivre » / « Abonné » par compte. Chaque action demande une confirmation.
+
+La liste « Abonnés » d'un compte ne contient que les comptes qui le suivent vraiment : elle est calculée à partir du tableau `following` des autres comptes (celui qui ouvre les publications réservées aux abonnés), et les nombres affichés sur le profil suivent la même règle. Si une ancienne version a laissé des tableaux `followers` désaccordés, remets-les d'accord :
+
+```bash
+cd backend
+pnpm repair:follows --dry-run   # compte seulement
+pnpm repair:follows
+```
+
+## Notifications
+
+La page Notifications range l'activité par date (aujourd'hui, hier, cette semaine, plus tôt), avec des filtres (Tout, J'aime, Commentaires, Abonnés) et une pagination de 20 par page ; le filtre et la page sont dans l'adresse. Les « j'aime » d'une même publication sont regroupés (« Awa, Brice et 2 autres ont aimé… »), un commentaire montre son début, et un abonnement propose « Suivre en retour » avec confirmation. Ce qui était non lu à l'ouverture reste signalé pendant la visite, puis tout passe en lu. Supprimer un commentaire supprime aussi sa notification.
+
+## Fil et grilles
+
+L'accueil et Explorer affichent un fil à défilement infini. La page **Enregistrés** et le **profil** (ses publications, et l'onglet « Enregistrés » de son propre profil) affichent une grille paginée : 6 publications par page, 3 colonnes quand la place le permet (2 sur tablette, 1 sur mobile). La page, le tri et l'onglet sont dans l'adresse (`/u/awa?tab=saved&page=2`), donc le retour arrière ramène au même endroit.
 
 ## Paragraphes
 
@@ -208,5 +228,5 @@ Le détail des paramètres, corps de requête et réponses est dans Swagger (`/d
 | GET     | `/api/users/:username/followers` | public      |
 | GET     | `/api/users/:username/following` | public      |
 | POST    | `/api/users/:id/follow`       | connecté       |
-| GET     | `/api/notifications`          | connecté       |
+| GET     | `/api/notifications?type=like\|comment\|follow&page=&limit=` | connecté |
 | PATCH   | `/api/notifications/read`     | connecté       |

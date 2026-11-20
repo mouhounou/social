@@ -1,5 +1,7 @@
 const { describe, it, before, after } = require("node:test");
 const assert = require("node:assert/strict");
+const path = require("node:path");
+const { execFileSync } = require("node:child_process");
 const mongoose = require("mongoose");
 const { start, stop, client, signup, lastOtp, mailer } = require("./helpers");
 
@@ -388,6 +390,43 @@ describe("commentaires", () => {
   });
 });
 
+describe("notifications", () => {
+  it("filtre par type, pagine, montre le commentaire et oublie un commentaire supprimé", async () => {
+    const owner = await signup("notif_auteur", "author");
+    const fan = await signup("notif_fan");
+    const post = (await owner.post("/posts", { title: "Notifs", content: "x" })).data.post;
+    await fan.post(`/posts/${post._id}/like`);
+    const first = (await fan.post(`/posts/${post._id}/comments`, { content: "Premier commentaire" })).data.comment;
+    await fan.post(`/posts/${post._id}/comments`, { content: "Deuxième" });
+    await fan.post(`/users/${owner.user._id}/follow`);
+
+    const all = (await owner.get("/notifications")).data;
+    assert.deepEqual(all.notifications.map((n) => n.type), ["follow", "comment", "comment", "like"]);
+    assert.equal(all.notifications[1].comment.content, "Deuxième");
+    assert.equal(all.notifications[0].comment, null);
+    assert.equal(all.unread, 4);
+    assert.deepEqual([all.page, all.pages, all.total], [1, 1, 4]);
+
+    const comments = (await owner.get("/notifications?type=comment")).data.notifications;
+    assert.deepEqual(comments.map((n) => n.comment.content), ["Deuxième", "Premier commentaire"]);
+
+    const page1 = (await owner.get("/notifications?limit=3")).data;
+    assert.equal(page1.notifications.length, 3);
+    assert.deepEqual([page1.page, page1.pages, page1.total], [1, 2, 4]);
+    const page2 = (await owner.get("/notifications?limit=3&page=2")).data;
+    assert.deepEqual(page2.notifications.map((n) => n.type), ["like"]);
+    assert.equal(page2.page, 2);
+    assert.deepEqual((await owner.get("/notifications?type=comment&limit=1")).data.pages, 2);
+
+    assert.equal((await owner.get("/notifications?type=autre")).status, 400);
+
+    await fan.delete(`/comments/${first._id}`);
+    const left = (await owner.get("/notifications?type=comment")).data.notifications;
+    assert.deepEqual(left.map((n) => n.comment.content), ["Deuxième"]);
+    await owner.delete(`/posts/${post._id}`);
+  });
+});
+
 describe("profil", () => {
   it("valide le site web et refuse les champs non textuels", async () => {
     assert.equal((await reader.patch("/users/me", { website: "pas-une-url" })).status, 400);
@@ -408,6 +447,43 @@ describe("profil", () => {
     await other.post(`/users/${author.user._id}/follow`);
     const res = await reader.get("/users/auteur/followers");
     assert.deepEqual(res.data.users.map((u) => u.username), ["autre"]);
+  });
+
+  it("ne montre comme abonnés que les comptes qui suivent vraiment, même si les données ont divergé", async () => {
+    const users = mongoose.connection.collection("users");
+    // Copie `followers` désaccordée : « lecteur » y figure sans suivre « auteur ».
+    await users.updateOne({ username: "auteur" }, { $addToSet: { followers: new mongoose.Types.ObjectId(reader.user._id) } });
+    try {
+      assert.deepEqual((await guest.get("/users/auteur/followers")).data.users.map((u) => u.username), ["autre"]);
+      const profile = (await reader.get("/users/auteur")).data.user;
+      assert.equal(profile.followersCount, 1);
+      assert.equal(profile.isFollowing, false);
+    } finally {
+      await users.updateOne({ username: "auteur" }, { $pull: { followers: new mongoose.Types.ObjectId(reader.user._id) } });
+    }
+  });
+
+  it("indique, pour chaque compte d'une liste, si on le suit et s'il nous suit", async () => {
+    let seen = await other.get("/users/autre/following");
+    assert.deepEqual(seen.data.users.map((u) => [u.username, u.isFollowing, u.followsYou, u.isMe]), [["auteur", true, false, false]]);
+    await author.post(`/users/${other.user._id}/follow`);
+    seen = await other.get("/users/autre/following");
+    assert.deepEqual(seen.data.users.map((u) => [u.username, u.followsYou]), [["auteur", true]]);
+    assert.deepEqual((await other.get("/users/auteur/followers")).data.users.map((u) => [u.username, u.isMe]), [["autre", true]]);
+    await author.post(`/users/${other.user._id}/follow`);
+  });
+
+  it("remet d'accord les listes d'abonnés avec pnpm repair:follows", async () => {
+    const users = mongoose.connection.collection("users");
+    await users.updateOne({ username: "auteur" }, { $addToSet: { followers: new mongoose.Types.ObjectId(reader.user._id) } });
+    const out = execFileSync(process.execPath, ["scripts/repair-follows.js"], {
+      cwd: path.join(__dirname, ".."),
+      env: process.env,
+      encoding: "utf8",
+    });
+    assert.match(out, /corrigée/);
+    const doc = await users.findOne({ username: "auteur" });
+    assert.deepEqual(doc.followers.map(String), [other.user._id]);
   });
 
   it("change le mot de passe et invalide les anciennes sessions", async () => {
