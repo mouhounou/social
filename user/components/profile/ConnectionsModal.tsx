@@ -6,6 +6,7 @@ import Avatar from "@/components/ui/Avatar";
 import FollowButton from "@/components/profile/FollowButton";
 import Modal from "@/components/ui/Modal";
 import Spinner from "@/components/ui/Spinner";
+import { useAuth } from "@/hooks/useAuth";
 import { api } from "@/lib/api";
 import type { Connection } from "@/types";
 
@@ -13,10 +14,15 @@ type Props = {
   username: string;
   type: "followers" | "following";
   onClose: () => void;
+  /** Appelé quand l'utilisateur connecté suit ou ne suit plus un compte de la liste. */
+  onFollowChange?: (following: boolean) => void;
 };
 
-export default function ConnectionsModal({ username, type, onClose }: Props) {
+export default function ConnectionsModal({ username, type, onClose, onFollowChange }: Props) {
+  const { user: me } = useAuth();
   const [users, setUsers] = useState<Connection[] | null>(null);
+  // Sur ses propres abonnés, « Suivre en retour » dit mieux ce que fait le bouton.
+  const followLabel = type === "followers" && me?.username === username ? "Suivre en retour" : "Suivre";
 
   useEffect(() => {
     api<{ users: Connection[] }>(`/users/${username}/${type}`)
@@ -46,7 +52,18 @@ export default function ConnectionsModal({ username, type, onClose }: Props) {
                   <p className="truncate text-sm font-semibold">{u.name}</p>
                   <p className="truncate text-xs text-muted">{u.bio || `@${u.username}`}</p>
                 </Link>
-                {!u.isMe && <FollowButton userId={u._id} initial={u.isFollowing} />}
+                {u.isMe ? (
+                  <span className="shrink-0 rounded-full bg-field px-3 py-1 text-xs font-medium text-muted">Toi</span>
+                ) : (
+                  <FollowButton
+                    userId={u._id}
+                    initial={u.isFollowing}
+                    variant="pill"
+                    confirm={{ name: u.name, avatar: u.avatar }}
+                    followLabel={followLabel}
+                    onChange={onFollowChange}
+                  />
+                )}
               </li>
             ))}
           </ul>
