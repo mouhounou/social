@@ -71,10 +71,15 @@ export type Notification = {
   createdAt: string;
   actor: Author;
   post: { _id: string; title: string; image: string | null } | null;
+  /** Le commentaire, pour une notification de commentaire (absent des plus anciennes). */
+  comment?: { _id: string; content: string } | null;
   following: boolean;
 };
 
-export type Connection = Author & { bio: string; isFollowing: boolean; isMe: boolean };
+export type NotificationPage = { unread: number; page: number; pages: number; total: number; notifications: Notification[] };
+
+/** Compte d'une liste d'abonnés ou d'abonnements, vu par l'utilisateur connecté. */
+export type Connection = Author & { bio: string; isFollowing: boolean; followsYou: boolean; isMe: boolean };
 
 export type Suggestion = Author & { followersCount: number; hint: string };
 

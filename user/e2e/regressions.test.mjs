@@ -201,7 +201,7 @@ describe("fil et articles", () => {
   it("n'affiche pas de doublon après une publication puis le chargement de la page suivante", async () => {
     const p = await page();
     await login(p, "e2e_auteur");
-    await p.goto(`${FRONT}/u/e2e_auteur`);
+    await p.goto(`${FRONT}/`);
     const title = `Pendant la lecture ${Date.now()}`;
     await p.getByPlaceholder(/Partage quelque chose/).click();
     await p.getByPlaceholder("Titre de ta publication").fill(title);
@@ -209,6 +209,8 @@ describe("fil et articles", () => {
     await p.getByRole("button", { name: "Publier" }).click();
     await p.getByText(title).waitFor();
     await p.locator("article").nth(10).waitFor();
+    // Sur desktop, seule la colonne du fil défile : la molette doit être au-dessus d'elle.
+    await p.locator("article").first().hover();
     await p.mouse.wheel(0, 20000);
     await p.locator("article").nth(11).waitFor();
     await p.waitForTimeout(1500);
@@ -220,7 +222,7 @@ describe("fil et articles", () => {
   it("ajoute des tags depuis le bouton du formulaire, sept au maximum", async () => {
     const p = await page();
     await login(p, "e2e_auteur");
-    await p.goto(`${FRONT}/u/e2e_auteur`);
+    await p.goto(`${FRONT}/`);
     const composer = p.locator("form", { has: p.getByPlaceholder(/Partage quelque chose/) });
     const title = `Avec tags ${Date.now()}`;
     await composer.getByRole("button", { name: "Ajouter des tags" }).click();
@@ -268,6 +270,63 @@ describe("fil et articles", () => {
     await p.getByRole("heading", { name: "Première partie" }).waitFor();
     await p.getByRole("heading", { name: "La vidéo" }).waitFor();
     assert.equal(await p.locator("article iframe[src='https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ']").count(), 1);
+  });
+
+  it("pagine le profil d'un auteur par 6, en grille, avec la page dans l'adresse", async () => {
+    const p = await page();
+    await p.goto(`${FRONT}/u/e2e_auteur`);
+    const tiles = p.locator("article");
+    await p.getByRole("navigation", { name: "Pagination" }).waitFor();
+    assert.equal(await tiles.count(), 6);
+    const first = await tiles.locator("h2").allInnerTexts();
+
+    await p.getByRole("link", { name: "Page 2", exact: true }).click();
+    await p.waitForURL(/\/u\/e2e_auteur\?page=2$/);
+    await p.getByRole("link", { name: "Page 2", exact: true }).and(p.locator("[aria-current=page]")).waitFor();
+    await p.waitForFunction(() => !document.querySelector("[aria-busy=true]"));
+    const second = await tiles.locator("h2").allInnerTexts();
+    assert.ok(second.length > 0 && second.length <= 6);
+    assert.equal(second.filter((t) => first.includes(t)).length, 0);
+
+    // La grille a trois colonnes sur desktop.
+    const tops = await tiles.evaluateAll((els) => els.slice(0, 3).map((e) => Math.round(e.getBoundingClientRect().top)));
+    if (second.length >= 3) assert.equal(new Set(tops).size, 1);
+
+    await p.goBack();
+    await p.waitForURL(/\/u\/e2e_auteur$/);
+    await p.getByRole("link", { name: "Page 1", exact: true }).and(p.locator("[aria-current=page]")).waitFor();
+    assert.deepEqual(p.errors, []);
+  });
+
+  it("demande une confirmation avant de se désabonner ou de suivre depuis la liste des abonnements", async () => {
+    const reader = await apiLogin("e2e_lecteur");
+    const followsAuthor = async () => (await api(reader, "GET", "/users/e2e_auteur")).user.isFollowing;
+    if (!(await followsAuthor())) await api(reader, "POST", `/users/${(await api(reader, "GET", "/users/e2e_auteur")).user._id}/follow`);
+
+    const p = await page();
+    await login(p, "e2e_lecteur");
+    await p.goto(`${FRONT}/u/e2e_lecteur`);
+    await p.getByRole("button", { name: /Abonnements/ }).click();
+    const list = p.getByRole("dialog", { name: "e2e_lecteur" });
+    await list.getByRole("tab", { name: /Abonnements/, selected: true }).waitFor();
+    const confirm = p.getByRole("alertdialog");
+
+    await list.getByRole("button", { name: "Abonné à e2e_auteur, se désabonner" }).click();
+    await confirm.getByRole("heading", { name: "Te désabonner de e2e_auteur ?" }).waitFor();
+    await confirm.getByRole("button", { name: "Annuler" }).click();
+    await confirm.waitFor({ state: "detached" });
+    assert.equal(await followsAuthor(), true, "rien ne change sans confirmation");
+
+    await list.getByRole("button", { name: "Abonné à e2e_auteur, se désabonner" }).click();
+    await confirm.getByRole("button", { name: "Se désabonner" }).click();
+    await list.getByRole("button", { name: "Suivre e2e_auteur" }).waitFor();
+    assert.equal(await followsAuthor(), false);
+
+    await list.getByRole("button", { name: "Suivre e2e_auteur" }).click();
+    await confirm.getByRole("button", { name: "Suivre" }).click();
+    await list.getByRole("button", { name: "Abonné à e2e_auteur, se désabonner" }).waitFor();
+    assert.equal(await followsAuthor(), true);
+    assert.deepEqual(p.errors, []);
   });
 
   it("met à jour le compteur de la carte quand on commente", async () => {

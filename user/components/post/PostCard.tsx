@@ -7,6 +7,7 @@ import { useState } from "react";
 import { Bookmark, EllipsisVertical, Heart, ListOrdered, MessageCircle, Pencil, Send, Trash2, Users } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useOutsideClick } from "@/hooks/useOutsideClick";
+import { usePostReactions } from "@/hooks/usePostReactions";
 import { api } from "@/lib/api";
 import { compact, timeAgo } from "@/utils/time";
 import type { Post } from "@/types";
@@ -27,12 +28,7 @@ type Props = {
 export default function PostCard({ post: initial, full = false, onDeleted, onComment, commentsCount }: Props) {
   const { user } = useAuth();
   const router = useRouter();
-  const [post, setPost] = useState(initial);
-  const [source, setSource] = useState(initial);
-  if (initial !== source) {
-    setSource(initial);
-    setPost(initial);
-  }
+  const { post, setPost, toggle } = usePostReactions(initial);
   const [menu, setMenu] = useState(false);
   const menuRef = useOutsideClick<HTMLDivElement>(menu, () => setMenu(false));
   const [copied, setCopied] = useState(false);
@@ -48,22 +44,6 @@ export default function PostCard({ post: initial, full = false, onDeleted, onCom
   const image =
     post.image ??
     (full ? null : paragraphs.find((p) => p.media?.type === "image" && p.media.provider === "cloudinary")?.media?.url);
-
-  async function toggle(kind: "like" | "save") {
-    if (!user) return router.push("/login");
-
-    const key = kind === "like" ? "liked" : "saved";
-    const countKey = kind === "like" ? "likesCount" : "savesCount";
-    const was = post[key];
-    setPost((p) => ({ ...p, [key]: !was, [countKey]: p[countKey] + (was ? -1 : 1) }));
-
-    try {
-      const res = await api<{ active: boolean; count: number }>(`/posts/${post._id}/${kind}`, { method: "POST" });
-      setPost((p) => ({ ...p, [key]: res.active, [countKey]: res.count }));
-    } catch {
-      setPost((p) => ({ ...p, [key]: was, [countKey]: p[countKey] + (was ? 1 : -1) }));
-    }
-  }
 
   async function remove() {
     if (!confirm("Supprimer cette publication ?")) return;

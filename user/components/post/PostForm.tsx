@@ -78,110 +78,123 @@ export default function PostForm({ post }: { post?: Post }) {
   }
 
   return (
-    <form onSubmit={submit} className="card space-y-5 p-6">
-      <h1 className="text-lg font-semibold">{post ? "Modifier la publication" : "Nouvelle publication"}</h1>
+    // Desktop : le contenu à gauche, les réglages et l'envoi à droite, toujours à l'écran.
+    <form onSubmit={submit} className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_320px] lg:gap-6">
+      <div className="card min-w-0 space-y-5 p-6">
+        <h1 className="text-lg font-semibold">{post ? "Modifier la publication" : "Nouvelle publication"}</h1>
 
-      <div className="space-y-2">
-        <label className="text-sm font-medium">Titre</label>
-        <input value={title} onChange={(e) => setTitle(e.target.value)} className="input rounded-2xl" maxLength={150} required />
-      </div>
+        <div className="space-y-2">
+          <label className="text-sm font-medium">Titre</label>
+          <input
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            className="input rounded-2xl"
+            maxLength={150}
+            required
+          />
+        </div>
 
-      <div className="space-y-2">
-        <label className="text-sm font-medium">Contenu</label>
-        <textarea
-          value={content}
-          onChange={(e) => setContent(e.target.value)}
-          rows={8}
-          className="input resize-y rounded-2xl"
-          required
-        />
-      </div>
+        <div className="space-y-2">
+          <label className="text-sm font-medium">Contenu</label>
+          <textarea
+            value={content}
+            onChange={(e) => setContent(e.target.value)}
+            rows={8}
+            className="input resize-y rounded-2xl"
+            required
+          />
+        </div>
 
-      {preview ? (
-        <div className="relative overflow-hidden rounded-2xl">
-          <Image src={preview} alt="" width={800} height={500} unoptimized className="max-h-80 w-full object-cover" />
+        {preview ? (
+          <div className="relative overflow-hidden rounded-2xl">
+            <Image src={preview} alt="" width={800} height={500} unoptimized className="max-h-80 w-full object-cover" />
+            <button
+              type="button"
+              onClick={() => {
+                setFile(null);
+                setPreview(null);
+                setRemoveImage(true);
+              }}
+              aria-label="Retirer l'image de couverture"
+              className="absolute top-2 right-2 rounded-full bg-black/60 p-1.5 text-white"
+            >
+              <X className="size-4" />
+            </button>
+          </div>
+        ) : (
           <button
             type="button"
-            onClick={() => {
-              setFile(null);
-              setPreview(null);
-              setRemoveImage(true);
-            }}
-            aria-label="Retirer l'image de couverture"
-            className="absolute top-2 right-2 rounded-full bg-black/60 p-1.5 text-white"
+            onClick={() => fileRef.current?.click()}
+            className="flex w-full flex-col items-center gap-2 rounded-2xl border-2 border-dashed border-line py-10 text-sm text-muted hover:border-brand hover:text-brand"
           >
-            <X className="size-4" />
+            <ImageIcon className="size-6" />
+            Ajouter une image de couverture
+          </button>
+        )}
+        <input
+          ref={fileRef}
+          type="file"
+          accept="image/*"
+          hidden
+          onChange={(e) => {
+            const f = e.target.files?.[0];
+            e.target.value = "";
+            if (!f) return;
+            setFile(f);
+            setPreview(URL.createObjectURL(f));
+          }}
+        />
+
+        <ParagraphsEditor value={paragraphs} onChange={setParagraphs} invalid={invalidParagraph} />
+      </div>
+
+      <aside className="card space-y-5 p-6 lg:sticky lg:top-[97px]">
+        <p className="font-semibold">Réglages</p>
+
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1">
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Catégorie</label>
+            <select value={category} onChange={(e) => setCategory(e.target.value)} className="input rounded-2xl">
+              {CATEGORIES.map((c) => (
+                <option key={c}>{c}</option>
+              ))}
+            </select>
+          </div>
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Visibilité</label>
+            <select
+              value={visibility}
+              onChange={(e) => setVisibility(e.target.value as Post["visibility"])}
+              className="input rounded-2xl"
+            >
+              <option value="public">Public</option>
+              <option value="followers">Abonnés uniquement</option>
+            </select>
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <label className="text-sm font-medium">Tags</label>
+          <TagInput value={tags} onChange={setTags} />
+        </div>
+
+        {error && <p className="text-sm text-red-500">{error}</p>}
+
+        <div className="flex justify-end gap-3 lg:flex-col-reverse">
+          <button type="button" onClick={() => router.back()} className="btn-ghost">
+            Annuler
+          </button>
+          <button disabled={saving} className="btn-primary">
+            {progress !== null && progress < 100
+              ? `Envoi… ${progress} %`
+              : saving
+                ? "Enregistrement…"
+                : post
+                  ? "Enregistrer"
+                  : "Publier"}
           </button>
         </div>
-      ) : (
-        <button
-          type="button"
-          onClick={() => fileRef.current?.click()}
-          className="flex w-full flex-col items-center gap-2 rounded-2xl border-2 border-dashed border-line py-10 text-sm text-muted hover:border-brand hover:text-brand"
-        >
-          <ImageIcon className="size-6" />
-          Ajouter une image de couverture
-        </button>
-      )}
-      <input
-        ref={fileRef}
-        type="file"
-        accept="image/*"
-        hidden
-        onChange={(e) => {
-          const f = e.target.files?.[0];
-          e.target.value = "";
-          if (!f) return;
-          setFile(f);
-          setPreview(URL.createObjectURL(f));
-        }}
-      />
-
-      <ParagraphsEditor value={paragraphs} onChange={setParagraphs} invalid={invalidParagraph} />
-
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div className="space-y-2">
-          <label className="text-sm font-medium">Catégorie</label>
-          <select value={category} onChange={(e) => setCategory(e.target.value)} className="input rounded-2xl">
-            {CATEGORIES.map((c) => (
-              <option key={c}>{c}</option>
-            ))}
-          </select>
-        </div>
-        <div className="space-y-2">
-          <label className="text-sm font-medium">Visibilité</label>
-          <select
-            value={visibility}
-            onChange={(e) => setVisibility(e.target.value as Post["visibility"])}
-            className="input rounded-2xl"
-          >
-            <option value="public">Public</option>
-            <option value="followers">Abonnés uniquement</option>
-          </select>
-        </div>
-      </div>
-
-      <div className="space-y-2">
-        <label className="text-sm font-medium">Tags</label>
-        <TagInput value={tags} onChange={setTags} />
-      </div>
-
-      {error && <p className="text-sm text-red-500">{error}</p>}
-
-      <div className="flex justify-end gap-3">
-        <button type="button" onClick={() => router.back()} className="btn-ghost">
-          Annuler
-        </button>
-        <button disabled={saving} className="btn-primary">
-          {progress !== null && progress < 100
-            ? `Envoi… ${progress} %`
-            : saving
-              ? "Enregistrement…"
-              : post
-                ? "Enregistrer"
-                : "Publier"}
-        </button>
-      </div>
+      </aside>
     </form>
   );
 }
