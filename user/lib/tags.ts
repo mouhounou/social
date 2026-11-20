@@ -15,6 +15,11 @@ export function contentTags(content: string): string[] {
   return [...content.matchAll(HASHTAG_RE)].map((m) => m[1].toLowerCase());
 }
 
+/** Texte d'une publication où l'API cherche les hashtags : le contenu et les descriptions des paragraphes. */
+export function postText(post: { content: string; paragraphs?: { description: string }[] }): string {
+  return [post.content, ...(post.paragraphs ?? []).map((p) => p.description)].join("\n");
+}
+
 /** Tags ajoutés à la main, c'est-à-dire ceux qui ne sont pas déjà écrits dans le texte. */
 export function extraTags(tags: string[], content: string): string[] {
   const inContent = new Set(contentTags(content));

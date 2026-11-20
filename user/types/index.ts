@@ -21,6 +21,21 @@ export type User = {
 
 export type Author = Pick<User, "_id" | "name" | "username" | "avatar">;
 
+/** Image ou vidéo d'un paragraphe. `cloudinary` : fichier hébergé ; sinon `url` est le lecteur à intégrer. */
+export type Media = {
+  type: "image" | "video";
+  provider: "cloudinary" | "youtube" | "vimeo" | "dailymotion";
+  url: string;
+  /** Lien d'origine quand le média vient d'une autre plateforme, null s'il a été envoyé depuis l'appareil. */
+  link: string | null;
+};
+
+export type Paragraph = {
+  title: string;
+  description: string;
+  media: Media | null;
+};
+
 export type Post = {
   _id: string;
   title: string;
@@ -28,6 +43,8 @@ export type Post = {
   category: string;
   tags: string[];
   image: string | null;
+  /** Facultatif : absent ou vide pour une publication sans paragraphes. */
+  paragraphs?: Paragraph[];
   visibility: "public" | "followers";
   author: Author;
   likesCount: number;
