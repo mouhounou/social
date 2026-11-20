@@ -101,6 +101,10 @@ pnpm repair:follows --dry-run   # compte seulement
 pnpm repair:follows
 ```
 
+## Notifications
+
+La page Notifications range l'activité par date (aujourd'hui, hier, cette semaine, plus tôt), avec des filtres (Tout, J'aime, Commentaires, Abonnés) et une pagination de 20 par page ; le filtre et la page sont dans l'adresse. Les « j'aime » d'une même publication sont regroupés (« Awa, Brice et 2 autres ont aimé… »), un commentaire montre son début, et un abonnement propose « Suivre en retour » avec confirmation. Ce qui était non lu à l'ouverture reste signalé pendant la visite, puis tout passe en lu. Supprimer un commentaire supprime aussi sa notification.
+
 ## Fil et grilles
 
 L'accueil et Explorer affichent un fil à défilement infini. La page **Enregistrés** et le **profil** (ses publications, et l'onglet « Enregistrés » de son propre profil) affichent une grille paginée : 6 publications par page, 3 colonnes quand la place le permet (2 sur tablette, 1 sur mobile). La page, le tri et l'onglet sont dans l'adresse (`/u/awa?tab=saved&page=2`), donc le retour arrière ramène au même endroit.
@@ -224,5 +228,5 @@ Le détail des paramètres, corps de requête et réponses est dans Swagger (`/d
 | GET     | `/api/users/:username/followers` | public      |
 | GET     | `/api/users/:username/following` | public      |
 | POST    | `/api/users/:id/follow`       | connecté       |
-| GET     | `/api/notifications`          | connecté       |
+| GET     | `/api/notifications?type=like\|comment\|follow&page=&limit=` | connecté |
 | PATCH   | `/api/notifications/read`     | connecté       |

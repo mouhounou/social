@@ -36,7 +36,7 @@ async function addComment(req, res) {
 
   const comment = await Comment.create({ post: post._id, author: req.user._id, content });
   await Post.updateOne({ _id: post._id }, { $inc: { commentsCount: 1 } });
-  await Notification.push({ recipient: post.author, actor: req.user._id, type: "comment", post: post._id });
+  await Notification.push({ recipient: post.author, actor: req.user._id, type: "comment", post: post._id, comment: comment._id });
 
   await comment.populate("author", "name username avatar");
   res.status(201).json({ comment: serialize(comment) });
@@ -52,6 +52,8 @@ async function deleteComment(req, res) {
   if (!allowed) throw new AppError("Action non autorisée", 403);
 
   await comment.deleteOne();
+  // La notification d'un commentaire supprimé n'a plus rien à montrer.
+  await Notification.deleteMany({ comment: comment._id });
   if (comment.post) {
     await Post.updateOne({ _id: comment.post._id, commentsCount: { $gt: 0 } }, { $inc: { commentsCount: -1 } });
   }

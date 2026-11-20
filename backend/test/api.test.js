@@ -390,6 +390,43 @@ describe("commentaires", () => {
   });
 });
 
+describe("notifications", () => {
+  it("filtre par type, pagine, montre le commentaire et oublie un commentaire supprimé", async () => {
+    const owner = await signup("notif_auteur", "author");
+    const fan = await signup("notif_fan");
+    const post = (await owner.post("/posts", { title: "Notifs", content: "x" })).data.post;
+    await fan.post(`/posts/${post._id}/like`);
+    const first = (await fan.post(`/posts/${post._id}/comments`, { content: "Premier commentaire" })).data.comment;
+    await fan.post(`/posts/${post._id}/comments`, { content: "Deuxième" });
+    await fan.post(`/users/${owner.user._id}/follow`);
+
+    const all = (await owner.get("/notifications")).data;
+    assert.deepEqual(all.notifications.map((n) => n.type), ["follow", "comment", "comment", "like"]);
+    assert.equal(all.notifications[1].comment.content, "Deuxième");
+    assert.equal(all.notifications[0].comment, null);
+    assert.equal(all.unread, 4);
+    assert.deepEqual([all.page, all.pages, all.total], [1, 1, 4]);
+
+    const comments = (await owner.get("/notifications?type=comment")).data.notifications;
+    assert.deepEqual(comments.map((n) => n.comment.content), ["Deuxième", "Premier commentaire"]);
+
+    const page1 = (await owner.get("/notifications?limit=3")).data;
+    assert.equal(page1.notifications.length, 3);
+    assert.deepEqual([page1.page, page1.pages, page1.total], [1, 2, 4]);
+    const page2 = (await owner.get("/notifications?limit=3&page=2")).data;
+    assert.deepEqual(page2.notifications.map((n) => n.type), ["like"]);
+    assert.equal(page2.page, 2);
+    assert.deepEqual((await owner.get("/notifications?type=comment&limit=1")).data.pages, 2);
+
+    assert.equal((await owner.get("/notifications?type=autre")).status, 400);
+
+    await fan.delete(`/comments/${first._id}`);
+    const left = (await owner.get("/notifications?type=comment")).data.notifications;
+    assert.deepEqual(left.map((n) => n.comment.content), ["Deuxième"]);
+    await owner.delete(`/posts/${post._id}`);
+  });
+});
+
 describe("profil", () => {
   it("valide le site web et refuse les champs non textuels", async () => {
     assert.equal((await reader.patch("/users/me", { website: "pas-une-url" })).status, 400);
