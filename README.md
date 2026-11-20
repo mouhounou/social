@@ -101,6 +101,10 @@ pnpm repair:follows --dry-run   # compte seulement
 pnpm repair:follows
 ```
 
+## Commentaires et réponses
+
+Un commentaire peut avoir des réponses, sur un seul niveau : répondre à une réponse la rattache au même fil, avec la mention de la personne à qui l'on répond (`@pseudo`). Sur la page d'une publication, « Voir les N réponses » ouvre un fil ; « Répondre » passe le champ de saisie en mode réponse (« En réponse à X », Échap pour annuler). Le nombre de commentaires affiché compte les réponses. Supprimer un commentaire supprime aussi ses réponses, après une confirmation qui le dit. La personne à qui l'on répond reçoit une notification « a répondu à ton commentaire » ; l'auteur de la publication est prévenu comme pour un commentaire. Les commentaires d'avant les réponses restent des commentaires de premier niveau.
+
 ## Notifications
 
 La page Notifications range l'activité par date (aujourd'hui, hier, cette semaine, plus tôt), avec des filtres (Tout, J'aime, Commentaires, Abonnés) et une pagination de 20 par page ; le filtre et la page sont dans l'adresse. Les « j'aime » d'une même publication sont regroupés (« Awa, Brice et 2 autres ont aimé… »), un commentaire montre son début, et un abonnement propose « Suivre en retour » avec confirmation. Ce qui était non lu à l'ouverture reste signalé pendant la visite, puis tout passe en lu. Supprimer un commentaire supprime aussi sa notification.
@@ -219,7 +223,9 @@ Le détail des paramètres, corps de requête et réponses est dans Swagger (`/d
 | POST    | `/api/posts/:id/save`         | connecté       |
 | GET     | `/api/posts/:id/comments`     | public         |
 | POST    | `/api/posts/:id/comments`     | connecté       |
-| DELETE  | `/api/comments/:id`           | auteur du commentaire ou de l'article, admin |
+| POST    | `/api/posts/:id/comments` avec `parent` | connecté (réponse à un commentaire) |
+| GET     | `/api/comments/:id/replies`   | public         |
+| DELETE  | `/api/comments/:id`           | auteur du commentaire ou de l'article, admin (emporte ses réponses) |
 | GET     | `/api/users/me`               | connecté       |
 | PATCH   | `/api/users/me` (nom, bio, ville, site, avatar, cover) | connecté |
 | PATCH   | `/api/users/me/password`      | connecté       |
