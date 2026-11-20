@@ -12,20 +12,21 @@ function Bubble({ className }: { className: string }) {
 
 function Visual() {
   return (
-    <div className="relative hidden overflow-hidden rounded-[28px] bg-gradient-to-br from-brand via-blue-500 to-indigo-600 p-10 text-white lg:flex lg:flex-col">
-      <span className="absolute -right-24 -bottom-24 size-80 rounded-full bg-white/10" />
-      <span className="absolute -top-16 -left-16 size-56 rounded-full bg-white/10" />
-      <Bubble className="top-24 right-10 size-16" />
-      <Bubble className="bottom-10 left-8 size-12" />
+    <div className="relative hidden overflow-hidden bg-gradient-to-br from-brand via-blue-500 to-indigo-600 p-12 text-white lg:flex lg:flex-col lg:justify-center xl:p-16">
+      <span className="absolute -right-32 -bottom-32 size-[28rem] rounded-full bg-white/10" />
+      <span className="absolute -top-24 -left-24 size-72 rounded-full bg-white/10" />
+      <Bubble className="top-[7%] right-[10%] size-16 xl:size-20" />
+      <Bubble className="bottom-[10%] left-[8%] size-14" />
 
-      <div className="relative">
-        <h2 className="max-w-sm text-3xl leading-tight font-semibold">Partage tes idées. Inspire ta communauté.</h2>
-        <p className="mt-3 max-w-xs text-sm text-white/80">
+      {/* Contenu de largeur fixe, centré : la carte et la notification restent groupées sur un grand écran. */}
+      <div className="relative mx-auto w-full max-w-md">
+        <h2 className="text-3xl leading-tight font-semibold xl:text-4xl">Partage tes idées. Inspire ta communauté.</h2>
+        <p className="mt-3 max-w-xs text-sm text-white/80 xl:text-base">
           Publie tes créations, échange en commentaires et suis les gens qui comptent pour toi.
         </p>
       </div>
 
-      <div className="relative mt-auto mb-6 h-80">
+      <div className="relative mx-auto mt-16 h-80 w-full max-w-md">
         <div className="absolute top-14 left-0 w-72 rotate-[-4deg] rounded-[20px] bg-white p-4 text-ink shadow-2xl">
           <div className="flex items-center gap-3">
             <span className="size-9 rounded-full bg-amber-200" />
@@ -69,17 +70,17 @@ function Visual() {
 
 export default function AuthLayout({ children }: LayoutProps<"/">) {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-slate-200/70 p-4 sm:p-8 lg:h-screen lg:overflow-hidden">
-      <div className="grid w-full max-w-5xl gap-4 rounded-[36px] bg-white p-3 shadow-[0_30px_80px_-30px_rgba(17,24,39,0.35)] lg:h-full lg:max-h-[860px] lg:grid-cols-2">
-        <Visual />
-        <main className="flex flex-col [scrollbar-width:thin] px-4 py-10 sm:px-10 lg:min-h-0 lg:overflow-y-auto">
-          <div className="m-auto w-full max-w-sm">
-            <GuestOnly />
-            <Logo className="mb-8 block text-center text-lg" />
-            {children}
-          </div>
-        </main>
-      </div>
+    // Tout l'écran : le visuel à gauche et le formulaire à droite sur desktop, le formulaire seul sur mobile.
+    // Sur desktop, seule la colonne du formulaire défile.
+    <div className="grid min-h-dvh bg-white lg:h-dvh lg:grid-cols-2 lg:overflow-hidden">
+      <Visual />
+      <main className="flex flex-col [scrollbar-width:thin] px-6 py-10 sm:px-10 lg:min-h-0 lg:overflow-y-auto">
+        <div className="m-auto w-full max-w-sm">
+          <GuestOnly />
+          <Logo className="mb-8 block text-center text-lg" />
+          {children}
+        </div>
+      </main>
     </div>
   );
 }
