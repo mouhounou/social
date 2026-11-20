@@ -1,6 +1,6 @@
 # Solola
 
-Espace de publication avec authentification : les auteurs publient des articles (titre, contenu, catégorie, image), tout le monde peut lire, et les membres connectés aiment, enregistrent, commentent et se suivent.
+Espace de publication avec authentification : les auteurs publient des articles (titre, contenu, catégorie, image, et des paragraphes facultatifs avec image ou vidéo), tout le monde peut lire, et les membres connectés aiment, enregistrent, commentent et se suivent.
 
 ```
 backend/   API Express + MongoDB (Mongoose), JWT, Nodemailer, Cloudinary
@@ -64,13 +64,15 @@ user/
     layout/     Navbar, Logo, Shortcuts
     ui/         Avatar, Modal, Spinner, RichText
     auth/       AuthField, RequireAuth, GuestOnly
-    post/       Feed, PostCard, PostForm, Composer, CommentInput, CategoryChips
+    post/       Feed, PostCard, PostForm, Composer, CommentInput, CategoryChips,
+                ParagraphsEditor, Paragraphs, MediaView
     profile/    ProfileCard, ProfileForm, FollowButton, SuggestionsCard...
     notification/ ActivityCard
     providers/  AuthInitializer (charge la session au démarrage)
   store/        stores zustand (authStore)
   hooks/        useAuth, useOutsideClick
-  lib/          axios.ts (instance + erreurs), api.ts (helper), constants.ts
+  lib/          axios.ts (instance + erreurs), api.ts (helper), constants.ts,
+                media.ts (liens vidéo, limites), draft.ts (brouillon du fil vers /posts/new)
   utils/        time, query, recovery
   types/        types partagés (User, Post, Comment...)
 ```
@@ -87,6 +89,22 @@ Ils créent leurs propres comptes (`e2e_auteur`, `e2e_lecteur`) et quelques arti
 
 Le front appelle `/api/*`, que Next réécrit vers `API_URL`. Le cookie de session est donc posé sur le même domaine que le front.
 
+## Paragraphes
+
+Une publication peut avoir des paragraphes, ou aucun : c'est facultatif. Chaque paragraphe a un **titre** (obligatoire, 150 caractères), une **description** (facultative, 5 000 caractères) et au plus **un média**, image ou vidéo :
+
+| Source | Ce qui se passe |
+| --- | --- |
+| Depuis l'appareil | Le fichier est envoyé sur Cloudinary. Image JPEG, PNG, WebP, GIF, AVIF (5 Mo) ou vidéo MP4, WebM, MOV (50 Mo). |
+| Lien YouTube, Vimeo ou Dailymotion | La vidéo reste chez elle et se lit dans son lecteur (YouTube passe par `youtube-nocookie.com`). |
+| Autre lien | Il doit mener directement à un fichier image ou vidéo : Cloudinary le récupère et en garde une copie, avec la source affichée sous le média. |
+
+Il y a 20 paragraphes au plus par publication. Les hashtags des descriptions deviennent des tags, et la recherche du fil porte aussi sur les paragraphes. Le formulaire complet (`/posts/new` et la modification) permet d'ajouter, réordonner et supprimer les paragraphes ; le bouton « Paragraphes » du formulaire rapide y mène en gardant ce qui est déjà saisi. Dans le fil, la carte indique le nombre de paragraphes, et une publication sans image de couverture montre la première image de ses paragraphes.
+
+Les publications d'avant n'ont rien à migrer : sans paragraphes, elles s'affichent et se modifient comme avant, et l'API renvoie `paragraphs: []`. Les requêtes sans champ `paragraphs` ne touchent pas aux paragraphes.
+
+Côté API, `paragraphs` est une liste JSON (une chaîne JSON en multipart) qui remplace la liste entière. Le média d'un paragraphe s'écrit `{ "file": n }` pour le n-ième fichier du champ `media`, `{ "link": "...", "type": "image" | "video" }` pour un lien, ou `{ "url": "..." }` pour garder le média actuel en modification. Les fichiers qui ne servent plus sont supprimés de Cloudinary. Le détail est dans Swagger.
+
 ## Profil
 
 Sans photo ou couverture, le front affiche `user/public/default-avatar.svg` et `user/public/default-cover.svg`.
@@ -99,7 +117,8 @@ Depuis sa page profil, l'utilisateur change directement sa couverture et son ava
 - En-têtes de sécurité (`helmet` côté API, `next.config.ts` côté front), site non intégrable dans une iframe, redirection après connexion limitée au site.
 - Anti-robots : l'inscription, la connexion et la demande de code passent par Cloudflare Turnstile (voir plus bas).
 - L'inscription ne confirme pas qu'un email a déjà un compte : le refus est le même message neutre, sans champ désigné. Le nom d'utilisateur, lui, est public (page de profil), donc « déjà pris » reste affiché.
-- Images acceptées : JPEG, PNG, WebP, GIF, AVIF (pas de SVG), 5 Mo au plus.
+- Images acceptées : JPEG, PNG, WebP, GIF, AVIF (pas de SVG), 5 Mo au plus. Vidéos des paragraphes : MP4, WebM, MOV, 50 Mo au plus, gardées sur le disque le temps de l'envoi puis effacées. Cloudinary revérifie le format à l'arrivée.
+- Médias par lien : seuls les liens `http(s)` sont acceptés (pas de `data:`, `file:`, `s3:`...). C'est Cloudinary qui va chercher le fichier, jamais l'API. Les lecteurs intégrés sont reconstruits à partir de l'identifiant de la vidéo, jamais à partir du lien fourni.
 - `pnpm test` contient une suite `security.test.js` qui vérifie chacun de ces points.
 
 En production :
@@ -152,8 +171,8 @@ Le détail des paramètres, corps de requête et réponses est dans Swagger (`/d
 | GET     | `/api/posts?q=&category=&tag=&author=&sort=recent\|popular&page=` | public |
 | GET     | `/api/posts/categories`       | public         |
 | GET     | `/api/posts/:id`              | public         |
-| POST    | `/api/posts` (multipart)      | author, admin  |
-| PATCH   | `/api/posts/:id` (multipart)  | propriétaire, admin |
+| POST    | `/api/posts` (multipart ou JSON, paragraphes facultatifs) | author, admin  |
+| PATCH   | `/api/posts/:id` (multipart ou JSON) | propriétaire, admin |
 | DELETE  | `/api/posts/:id`              | propriétaire, admin |
 | POST    | `/api/posts/:id/like`         | connecté       |
 | POST    | `/api/posts/:id/save`         | connecté       |

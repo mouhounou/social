@@ -9,6 +9,8 @@ Modèle Merise du backend (`backend/src/models`), en deux niveaux :
 
 > L'image est un aperçu généré à partir du fichier, pour le lire sans Looping. Dans Looping, le rendu suit son propre style ; les objets se déplacent librement si tu veux réorganiser le schéma.
 
+> L'entité PARAGRAPHE et l'association `contenir` (règle 6) sont décrites ici mais pas encore dessinées dans `solola.loo` ni dans l'aperçu : à ajouter dans Looping (ARTICLE **0,n** — `contenir` — **1,1** PARAGRAPHE).
+
 ## Règles de gestion
 
 1. Un utilisateur s'inscrit avec un nom, un pseudo et un email uniques. Il a le rôle **lecteur**, **auteur** ou **admin**.
@@ -16,11 +18,12 @@ Modèle Merise du backend (`backend/src/models`), en deux niveaux :
 3. Un article appartient à une seule catégorie, prise dans une liste fixe. Une catégorie regroupe zéro ou plusieurs articles.
 4. Un article peut porter plusieurs hashtags, extraits de son contenu. Un hashtag existe dès qu'au moins un article le porte.
 5. Un article est **public** ou réservé aux **abonnés** de son auteur.
-6. Un utilisateur connecté peut aimer et enregistrer autant d'articles qu'il veut, une seule fois chacun.
-7. Un commentaire est écrit par un seul utilisateur et concerne un seul article.
-8. Un utilisateur peut suivre d'autres utilisateurs ; il ne peut pas se suivre lui-même.
-9. Une notification est envoyée à un destinataire et déclenchée par un autre utilisateur. Elle vise un article pour un like ou un commentaire, et aucun pour un abonnement.
-10. Pour récupérer son compte, un utilisateur demande un code à 6 chiffres. Ce code expire après 10 minutes et accepte 5 essais au plus.
+6. Un article contient zéro ou plusieurs **paragraphes** (20 au plus), dans un ordre choisi par l'auteur. Un paragraphe appartient à un seul article. Il a un titre, une description facultative et au plus un média : une image ou une vidéo, envoyée depuis l'appareil ou récupérée sur une autre plateforme par son lien.
+7. Un utilisateur connecté peut aimer et enregistrer autant d'articles qu'il veut, une seule fois chacun.
+8. Un commentaire est écrit par un seul utilisateur et concerne un seul article.
+9. Un utilisateur peut suivre d'autres utilisateurs ; il ne peut pas se suivre lui-même.
+10. Une notification est envoyée à un destinataire et déclenchée par un autre utilisateur. Elle vise un article pour un like ou un commentaire, et aucun pour un abonnement.
+11. Pour récupérer son compte, un utilisateur demande un code à 6 chiffres. Ce code expire après 10 minutes et accepte 5 essais au plus.
 
 ## MCD
 
@@ -29,6 +32,7 @@ Modèle Merise du backend (`backend/src/models`), en deux niveaux :
 | `publier` | UTILISATEUR **0,n** | ARTICLE **1,1** | Un article a un auteur |
 | `classer` | ARTICLE **1,1** | CATEGORIE **0,n** | Un article a une catégorie |
 | `marquer` | ARTICLE **0,n** | HASHTAG **1,n** | Hashtags d'un article |
+| `contenir` | ARTICLE **0,n** | PARAGRAPHE **1,1** | Paragraphes d'un article |
 | `aimer` | UTILISATEUR **0,n** | ARTICLE **0,n** | Likes |
 | `enregistrer` | UTILISATEUR **0,n** | ARTICLE **0,n** | Articles enregistrés |
 | `suivre` | UTILISATEUR **0,n** (abonné) | UTILISATEUR **0,n** (suivi) | Abonnements, association réflexive |
@@ -45,6 +49,7 @@ Notation : clé primaire <u>soulignée</u>, clé étrangère précédée de `#`.
 
 - **UTILISATEUR** ( <u>id_utilisateur</u>, nom, pseudo, email, mot_de_passe, role, bio, ville, site_web, avatar_url, avatar_public_id, couverture_url, couverture_public_id, suspendu, mdp_modifie_le, cree_le, modifie_le )
 - **ARTICLE** ( <u>id_article</u>, titre, contenu, image_url, image_public_id, visibilite, nb_commentaires, cree_le, modifie_le, #id_utilisateur, #id_categorie )
+- **PARAGRAPHE** ( <u>id_paragraphe</u>, ordre, titre_paragraphe, description, media_type, media_fournisseur, media_url, media_public_id, media_lien, #id_article )
 - **CATEGORIE** ( <u>id_categorie</u>, libelle )
 - **HASHTAG** ( <u>libelle_hashtag</u> )
 - **COMMENTAIRE** ( <u>id_commentaire</u>, contenu_commentaire, cree_le, modifie_le, #id_utilisateur, #id_article )
@@ -61,6 +66,7 @@ Notation : clé primaire <u>soulignée</u>, clé étrangère précédée de `#`.
 |---|---|---|---|---|
 | ARTICLE | id_utilisateur | UTILISATEUR.id_utilisateur | oui | `publier` |
 | ARTICLE | id_categorie | CATEGORIE.id_categorie | oui | `classer` |
+| PARAGRAPHE | id_article | ARTICLE.id_article | oui | `contenir` |
 | COMMENTAIRE | id_utilisateur | UTILISATEUR.id_utilisateur | oui | `ecrire` |
 | COMMENTAIRE | id_article | ARTICLE.id_article | oui | `concerner` |
 | NOTIFICATION | id_utilisateur | UTILISATEUR.id_utilisateur | oui | `recevoir` (destinataire) |
@@ -98,6 +104,15 @@ Quand une table reçoit deux fois la même clé, Looping suffixe la seconde (`_1
 | | visibilite | VARCHAR(10) | non nul | `public` ou `followers` |
 | | nb_commentaires | INT | non nul | compteur dénormalisé |
 | | cree_le, modifie_le | DATETIME | non nul | |
+| PARAGRAPHE | id_paragraphe | COUNTER | identifiant | |
+| | ordre | SMALLINT | non nul | position dans l'article, à partir de 0 |
+| | titre_paragraphe | VARCHAR(150) | non nul | |
+| | description | TEXT | | 5 000 caractères max ; ses hashtags deviennent des tags de l'article |
+| | media_type | VARCHAR(5) | | `image` ou `video` ; vide sans média |
+| | media_fournisseur | VARCHAR(12) | | `cloudinary` (fichier hébergé), `youtube`, `vimeo` ou `dailymotion` (lecteur intégré) |
+| | media_url | VARCHAR(255) | | fichier Cloudinary, ou adresse du lecteur intégré |
+| | media_public_id | VARCHAR(255) | | fichier Cloudinary, pour le supprimer |
+| | media_lien | VARCHAR(2048) | | lien d'origine quand le média vient d'une autre plateforme |
 | CATEGORIE | id_categorie | COUNTER | identifiant | |
 | | libelle | VARCHAR(30) | non nul, unique | Art et dessin, Design, Photographie, Technologie, Musique, Voyage, Lifestyle, Manga, Autre |
 | HASHTAG | libelle_hashtag | VARCHAR(50) | identifiant | en minuscules, sans `#` ; 15 par article au plus |
@@ -126,11 +141,13 @@ Le backend utilise MongoDB : certaines associations ne sont pas des collections 
 | UTILISATEUR, ARTICLE, COMMENTAIRE, NOTIFICATION, CODE_OTP | collections `users`, `posts`, `comments`, `notifications`, `otps` |
 | CATEGORIE | champ `category` de `posts`, valeur de la liste `utils/categories.js` |
 | HASHTAG, `marquer` | tableau `tags` de `posts` |
+| PARAGRAPHE, `contenir` | tableau `paragraphs` de `posts` : sous-documents `{ title, description, media }`, l'ordre est la position dans le tableau. Absent des articles d'avant, lu comme une liste vide. |
 | `aimer`, `enregistrer` | tableaux `likes` et `saves` de `posts` (identifiants d'utilisateurs) |
 | `suivre` | tableaux `following` et `followers` de `users`, tenus à jour ensemble |
 | `publier`, `ecrire`, `concerner` | champs `author` et `post` |
 | `recevoir`, `declencher`, `viser` | champs `recipient`, `actor` et `post` de `notifications` |
 | `demander` | lien par le champ `email` de `otps`, pas par l'identifiant |
 | images (avatar, couverture, article) | sous-document `{ url, publicId }` |
+| média d'un paragraphe | sous-document `media` : `{ type, provider, url, publicId, link }` |
 
 Si le projet passe un jour sur une base relationnelle (PostgreSQL avec Prisma, par exemple), le MLD ci-dessus sert de schéma de départ. Looping génère aussi le script SQL depuis son onglet dédié.
