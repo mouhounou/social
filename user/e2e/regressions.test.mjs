@@ -298,6 +298,36 @@ describe("fil et articles", () => {
     assert.deepEqual(p.errors, []);
   });
 
+  it("demande une confirmation avant de se désabonner ou de suivre depuis la liste des abonnements", async () => {
+    const reader = await apiLogin("e2e_lecteur");
+    const followsAuthor = async () => (await api(reader, "GET", "/users/e2e_auteur")).user.isFollowing;
+    if (!(await followsAuthor())) await api(reader, "POST", `/users/${(await api(reader, "GET", "/users/e2e_auteur")).user._id}/follow`);
+
+    const p = await page();
+    await login(p, "e2e_lecteur");
+    await p.goto(`${FRONT}/u/e2e_lecteur`);
+    await p.getByRole("button", { name: /Abonnements/ }).click();
+    const list = p.getByRole("dialog", { name: "Abonnements" });
+    const confirm = p.getByRole("alertdialog");
+
+    await list.getByRole("button", { name: "Abonné à e2e_auteur, se désabonner" }).click();
+    await confirm.getByRole("heading", { name: "Te désabonner de e2e_auteur ?" }).waitFor();
+    await confirm.getByRole("button", { name: "Annuler" }).click();
+    await confirm.waitFor({ state: "detached" });
+    assert.equal(await followsAuthor(), true, "rien ne change sans confirmation");
+
+    await list.getByRole("button", { name: "Abonné à e2e_auteur, se désabonner" }).click();
+    await confirm.getByRole("button", { name: "Se désabonner" }).click();
+    await list.getByRole("button", { name: "Suivre e2e_auteur" }).waitFor();
+    assert.equal(await followsAuthor(), false);
+
+    await list.getByRole("button", { name: "Suivre e2e_auteur" }).click();
+    await confirm.getByRole("button", { name: "Suivre" }).click();
+    await list.getByRole("button", { name: "Abonné à e2e_auteur, se désabonner" }).waitFor();
+    assert.equal(await followsAuthor(), true);
+    assert.deepEqual(p.errors, []);
+  });
+
   it("met à jour le compteur de la carte quand on commente", async () => {
     const p = await page();
     await login(p, "e2e_lecteur");

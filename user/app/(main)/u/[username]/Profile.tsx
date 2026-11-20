@@ -290,7 +290,17 @@ export default function Profile({ username }: { username: string }) {
         </Modal>
       )}
 
-      {list && <ConnectionsModal username={user.username} type={list} onClose={() => setList(null)} />}
+      {list && (
+        <ConnectionsModal
+          username={user.username}
+          type={list}
+          onClose={() => setList(null)}
+          // Sur son propre profil, suivre ou se désabonner depuis la liste change le nombre d'abonnements.
+          onFollowChange={(following) =>
+            isMe && setUser((u) => u && { ...u, followingCount: u.followingCount + (following ? 1 : -1) })
+          }
+        />
+      )}
     </div>
   );
 }
