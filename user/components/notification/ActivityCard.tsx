@@ -14,6 +14,7 @@ import FollowButton from "@/components/profile/FollowButton";
 const verbs = {
   like: "a aimé ta publication.",
   comment: "a commenté ta publication.",
+  reply: "a répondu à ton commentaire.",
   follow: "a commencé à te suivre.",
 };
 

@@ -329,6 +329,35 @@ describe("fil et articles", () => {
     assert.deepEqual(p.errors, []);
   });
 
+  it("répond à un commentaire, ouvre le fil et supprime la réponse après confirmation", async () => {
+    const reader = await apiLogin("e2e_lecteur");
+    const root = (await api(reader, "POST", `/posts/${firstPost._id}/comments`, { content: `question ${Date.now()}` })).comment;
+    const p = await page();
+    await login(p, "e2e_auteur");
+    await p.goto(`${FRONT}/posts/${firstPost._id}`);
+    const panel = p.locator("#comments");
+    const thread = panel.locator("li", { hasText: root.content }).first();
+    const header = panel.locator("h2");
+    await thread.waitFor();
+    const before = Number((await header.innerText()).match(/\d+/)[0]);
+
+    await thread.getByRole("button", { name: "Répondre" }).first().click();
+    await panel.getByText("En réponse à e2e_lecteur").waitFor();
+    const text = `réponse ${Date.now()}`;
+    await p.keyboard.type(text);
+    await p.keyboard.press("Enter");
+    await thread.getByText(text).waitFor();
+    await thread.getByRole("button", { name: "Masquer les réponses" }).waitFor();
+    assert.equal(await header.innerText(), `Commentaires (${before + 1})`);
+
+    await panel.locator("[id^=comment-]", { hasText: text }).getByRole("button", { name: "Supprimer" }).click();
+    await p.getByRole("alertdialog").getByRole("button", { name: "Supprimer" }).click();
+    await thread.getByText(text).waitFor({ state: "detached" });
+    assert.equal(await header.innerText(), `Commentaires (${before})`);
+    await api(reader, "DELETE", `/comments/${root._id}`);
+    assert.deepEqual(p.errors, []);
+  });
+
   it("met à jour le compteur de la carte quand on commente", async () => {
     const p = await page();
     await login(p, "e2e_lecteur");
