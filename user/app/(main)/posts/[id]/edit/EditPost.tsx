@@ -44,9 +44,5 @@ function EditPostForm({ id }: { id: string }) {
     );
   }
 
-  return (
-    <div className="mx-auto max-w-2xl">
-      <PostForm post={post} />
-    </div>
-  );
+  return <PostForm post={post} />;
 }
