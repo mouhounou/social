@@ -1,4 +1,5 @@
 const categories = require("../utils/categories");
+const { MAX_PARAGRAPHS } = require("../utils/media");
 
 const ref = (name) => ({ $ref: `#/components/schemas/${name}` });
 const json = (schema) => ({ "application/json": { schema } });
@@ -42,10 +43,31 @@ const postFields = {
     description: "Tags ajoutés à la main, séparés par des virgules (7 max). En JSON, un tableau est aussi accepté. S'ajoutent aux hashtags du contenu.",
     example: "art,aquarelle",
   },
-  image: { type: "string", format: "binary", description: "Image (5 Mo max), envoyée sur Cloudinary" },
+  image: { type: "string", format: "binary", description: "Image de couverture (5 Mo max), envoyée sur Cloudinary" },
+  paragraphs: {
+    type: "string",
+    description:
+      `Paragraphes facultatifs (${MAX_PARAGRAPHS} max), en JSON : la même liste que \`ParagraphInput\` en application/json. ` +
+      "Un média `{ \"file\": n }` désigne le n-ième fichier du champ `media` (0 pour le premier). " +
+      "Absent : paragraphes inchangés ; `[]` : tous retirés.",
+    example: '[{"title":"Jour 1","description":"Départ #voyage","media":{"file":0}},{"title":"Le film","media":{"link":"https://youtu.be/dQw4w9WgXcQ"}}]',
+  },
+  media: {
+    type: "array",
+    items: { type: "string", format: "binary" },
+    description: "Fichiers des paragraphes : image (5 Mo max) ou vidéo MP4, WebM, MOV (50 Mo max)",
+  },
 };
 
-const jsonPostFields = Object.fromEntries(Object.entries(postFields).filter(([key]) => key !== "image"));
+const jsonPostFields = {
+  ...Object.fromEntries(Object.entries(postFields).filter(([key]) => !["image", "media", "paragraphs"].includes(key))),
+  paragraphs: {
+    type: "array",
+    maxItems: MAX_PARAGRAPHS,
+    description: "Absent : paragraphes inchangés ; `[]` : tous retirés. En JSON, pas d'envoi de fichier : les médias viennent d'un lien.",
+    items: ref("ParagraphInput"),
+  },
+};
 
 const credentials = {
   type: "object",
@@ -136,6 +158,11 @@ module.exports = {
           category: { type: "string", enum: categories },
           tags: { type: "array", items: { type: "string" }, example: ["art", "aquarelle"] },
           image: { type: "string", nullable: true, format: "uri" },
+          paragraphs: {
+            type: "array",
+            items: ref("Paragraph"),
+            description: "Vide pour une publication sans paragraphes",
+          },
           visibility: { type: "string", enum: ["public", "followers"] },
           author: ref("Author"),
           likesCount: { type: "integer" },
@@ -145,6 +172,61 @@ module.exports = {
           saved: { type: "boolean", description: "Enregistré par l'utilisateur connecté" },
           createdAt: { type: "string", format: "date-time" },
           updatedAt: { type: "string", format: "date-time" },
+        },
+      },
+      Media: {
+        type: "object",
+        properties: {
+          type: { type: "string", enum: ["image", "video"] },
+          provider: {
+            type: "string",
+            enum: ["cloudinary", "youtube", "vimeo", "dailymotion"],
+            description: "`cloudinary` : fichier à afficher (`img` ou `video`) ; sinon `url` est le lecteur à intégrer (iframe)",
+          },
+          url: { type: "string", format: "uri" },
+          link: {
+            type: "string",
+            nullable: true,
+            format: "uri",
+            description: "Lien d'origine quand le média vient d'une autre plateforme, null s'il a été envoyé depuis l'appareil",
+          },
+        },
+      },
+      Paragraph: {
+        type: "object",
+        properties: {
+          title: { type: "string", example: "Jour 1 : Lisbonne" },
+          description: { type: "string", example: "Arrivée sous le soleil. #voyage" },
+          media: { allOf: [ref("Media")], nullable: true },
+        },
+      },
+      ParagraphInput: {
+        type: "object",
+        required: ["title"],
+        properties: {
+          title: { type: "string", maxLength: 150 },
+          description: { type: "string", maxLength: 5000, description: "Ses hashtags deviennent des tags de la publication" },
+          media: {
+            type: "object",
+            nullable: true,
+            description:
+              "Un seul des trois : `file` (multipart), `link` (autre plateforme) ou `url` (garder le média actuel " +
+              "du paragraphe en modification, tel que renvoyé dans `Media.url`).",
+            properties: {
+              file: { type: "integer", minimum: 0, description: "Index du fichier dans le champ `media`" },
+              link: {
+                type: "string",
+                format: "uri",
+                maxLength: 2048,
+                description:
+                  "Lien http(s). YouTube, Vimeo et Dailymotion sont lus dans leur lecteur ; tout autre lien doit mener " +
+                  "directement à un fichier, récupéré sur Cloudinary.",
+                example: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+              },
+              type: { type: "string", enum: ["image", "video"], default: "image", description: "Pour un lien vers un fichier" },
+              url: { type: "string", format: "uri" },
+            },
+          },
         },
       },
       PostPage: {
@@ -340,7 +422,7 @@ module.exports = {
         description: "Un invité ne voit que les articles publics ; un membre voit aussi ceux des comptes qu'il suit.",
         security: optionalMember,
         parameters: [
-          { name: "q", in: "query", description: "Recherche dans le titre, le contenu et les hashtags", schema: { type: "string", maxLength: 100 } },
+          { name: "q", in: "query", description: "Recherche dans le titre, le contenu, les hashtags et les paragraphes", schema: { type: "string", maxLength: 100 } },
           { name: "category", in: "query", schema: { type: "string", enum: categories } },
           { name: "tag", in: "query", description: "Hashtag sans #", schema: { type: "string" } },
           { name: "author", in: "query", description: "Nom d'utilisateur", schema: { type: "string" } },
@@ -354,6 +436,9 @@ module.exports = {
       post: {
         tags: ["Articles"],
         summary: "Publier un article (auteur ou admin)",
+        description:
+          "Les paragraphes sont facultatifs. Chacun a un titre, une description et au plus un média : image ou vidéo " +
+          "envoyée depuis l'appareil (multipart) ou récupérée depuis une autre plateforme par son lien.",
         security: member,
         requestBody: {
           required: true,
@@ -372,7 +457,8 @@ module.exports = {
         },
         responses: {
           201: ok("Article créé", { type: "object", properties: { post: ref("Post") } }),
-          503: error("Envoi d'images non configuré"),
+          503: error("Envoi d'images et de vidéos non configuré"),
+          504: error("Le service des médias n'a pas répondu à temps"),
           ...pick(400, 401, 403),
         },
       },
@@ -404,6 +490,9 @@ module.exports = {
       patch: {
         tags: ["Articles"],
         summary: "Modifier un article (son auteur ou un admin)",
+        description:
+          "Les champs absents ne changent pas. `paragraphs` remplace la liste entière : pour garder le média d'un " +
+          "paragraphe, renvoie `{ \"url\": <Media.url> }`. Les fichiers qui ne servent plus sont supprimés de Cloudinary.",
         security: member,
         requestBody: {
           required: true,
@@ -424,14 +513,15 @@ module.exports = {
         },
         responses: {
           200: ok("Article modifié", { type: "object", properties: { post: ref("Post") } }),
-          503: error("Envoi d'images non configuré"),
+          503: error("Envoi d'images et de vidéos non configuré"),
+          504: error("Le service des médias n'a pas répondu à temps"),
           ...pick(400, 401, 403, 404),
         },
       },
       delete: {
         tags: ["Articles"],
         summary: "Supprimer un article (son auteur ou un admin)",
-        description: "Supprime aussi ses commentaires, ses notifications et son image.",
+        description: "Supprime aussi ses commentaires, ses notifications, son image et les médias de ses paragraphes.",
         security: member,
         responses: { 200: ok("Article supprimé", ref("Message")), ...pick(400, 401, 403, 404) },
       },

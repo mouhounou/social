@@ -69,6 +69,25 @@ describe("envoi d'images", () => {
       assert.equal(res.status, 400, type);
     }
   });
+
+  it("refuse le SVG et les fichiers non média dans les paragraphes", async () => {
+    for (const [type, name] of [["image/svg+xml", "x.svg"], ["text/html", "x.html"], ["application/pdf", "x.pdf"]]) {
+      const form = new FormData();
+      form.append("title", "t");
+      form.append("content", "c");
+      form.append("paragraphs", JSON.stringify([{ title: "p", media: { file: 0 } }]));
+      form.append("media", new Blob(["<svg onload=alert(1)>"], { type }), name);
+      const res = await author.post("/posts", form);
+      assert.equal(res.status, 400, type);
+    }
+  });
+
+  it("n'envoie à Cloudinary que des liens http(s)", async () => {
+    for (const link of ["data:image/png;base64,AAAA", "file:///etc/passwd", "s3://seau/a.png", "gs://seau/a.png"]) {
+      const res = await author.post("/posts", { title: "t", content: "c", paragraphs: [{ title: "p", media: { link } }] });
+      assert.equal(res.status, 400, link);
+    }
+  });
 });
 
 describe("connexion", () => {
