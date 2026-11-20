@@ -29,7 +29,7 @@ pnpm install
 pnpm dev               # http://localhost:5000
 ```
 
-Sans `SMTP_USER`, les emails ne partent pas : le code OTP est affiché dans la console de l'API, pratique en dev.
+Sans `SMTP_USER`, les emails ne partent pas : le code OTP est affiché dans la console de l'API, pratique en dev. Voir [Emails](#emails-code-otp) pour les configurer.
 
 La documentation interactive de l'API (Swagger) est sur http://localhost:5000/docs, et le document OpenAPI sur http://localhost:5000/docs.json. Dans Swagger, appelle `POST /auth/login` : le cookie de session est posé et les routes protégées marchent ensuite directement.
 
@@ -140,6 +140,27 @@ Le widget est affiché sur l'inscription, la connexion et « mot de passe oubli�
 | `NEXT_PUBLIC_TURNSTILE_SITE_KEY` | Front | Facultatif : remplace la clé publique du widget (définie dans `user/lib/constants.ts`). |
 
 En développement, le front utilise la clé de test de Cloudflare (toujours validée) et l'API ne vérifie rien tant que `TURNSTILE_SECRET` est vide. Pour essayer la vérification en local, mets `TURNSTILE_SECRET=1x0000000000000000000000000000000AA` et `TURNSTILE_HOSTNAMES=localhost` ; les secrets `2x…AA` (toujours refusé) et `3x…AA` (jeton déjà utilisé) servent à tester les refus. Ces clés de test sont refusées quand `NODE_ENV=production`.
+
+## Emails (code OTP)
+
+Les codes de « mot de passe oublié » partent par SMTP (variables `SMTP_*` de `backend/.env`). Pour vérifier la configuration sans passer par le site :
+
+```bash
+cd backend
+pnpm mail:test ton@email.fr
+```
+
+La commande affiche ce qu'elle a lu dans `.env` (sans le mot de passe), teste la connexion et les identifiants, envoie un mail, et explique l'échec s'il y en a un. Au démarrage, l'API fait la même vérification et écrit `Emails : SMTP prêt` ou la cause du problème.
+
+| Symptôme | Cause | Solution |
+| --- | --- | --- |
+| « un code vient d'être envoyé » mais rien n'arrive, en local | `SMTP_USER` vide | Normal en dev : le code est dans la console de l'API. Sinon, remplis les variables `SMTP_*`. |
+| `identifiants SMTP refusés` | Avec Gmail, mot de passe du compte au lieu d'un mot de passe d'application | Active la validation en deux étapes, crée un mot de passe d'application (16 lettres) et mets-le dans `SMTP_PASS`. |
+| `serveur SMTP injoignable`, ou l'envoi prend 10 s puis échoue | Mauvais `SMTP_HOST` / `SMTP_PORT`, ou hébergeur qui bloque les ports SMTP | Essaie le port 465, le 2525 si ton fournisseur le propose, ou un service d'envoi par API. |
+| `adresse d'expéditeur refusée` | `MAIL_FROM` sur un domaine que ton compte SMTP ne peut pas utiliser | Laisse `MAIL_FROM` vide (l'expéditeur devient `Solola <SMTP_USER>`). |
+| Le mail est accepté mais n'arrive pas | Filtre anti-spam | Regarde les spams ; un expéditeur sur ton propre domaine (avec SPF et DKIM) arrive mieux. |
+
+En production (`NODE_ENV=production`) sans `SMTP_USER`, « mot de passe oublié » répond 503 au lieu d'annoncer un envoi qui n'a pas lieu, et le code n'est jamais écrit dans les journaux.
 
 ## Rôles
 

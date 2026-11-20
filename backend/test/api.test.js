@@ -479,4 +479,20 @@ describe("récupération de compte par OTP", () => {
     const verify = await guest.post("/auth/verify-otp", { email: "lecteur@test.dev", code: "123456" });
     assert.equal(verify.data.message, "Code expiré, demande-en un nouveau");
   });
+
+  it("n'annonce pas d'envoi en production quand SMTP n'est pas configuré, compte connu ou non", async () => {
+    const env = process.env.NODE_ENV;
+    process.env.NODE_ENV = "production";
+    try {
+      for (const email of ["lecteur@test.dev", "inconnu@test.dev"]) {
+        const res = await guest.post("/auth/forgot-password", { email });
+        assert.equal(res.status, 503, email);
+        assert.equal(res.data.message, "L'envoi d'emails n'est pas configuré sur le serveur, réessaie plus tard");
+      }
+    } finally {
+      process.env.NODE_ENV = env;
+    }
+    const verify = await guest.post("/auth/verify-otp", { email: "lecteur@test.dev", code: "123456" });
+    assert.equal(verify.data.message, "Code expiré, demande-en un nouveau");
+  });
 });
