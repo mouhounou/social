@@ -1,5 +1,7 @@
 const { describe, it, before, after } = require("node:test");
 const assert = require("node:assert/strict");
+const path = require("node:path");
+const { execFileSync } = require("node:child_process");
 const mongoose = require("mongoose");
 const { start, stop, client, signup, lastOtp, mailer } = require("./helpers");
 
@@ -408,6 +410,43 @@ describe("profil", () => {
     await other.post(`/users/${author.user._id}/follow`);
     const res = await reader.get("/users/auteur/followers");
     assert.deepEqual(res.data.users.map((u) => u.username), ["autre"]);
+  });
+
+  it("ne montre comme abonnés que les comptes qui suivent vraiment, même si les données ont divergé", async () => {
+    const users = mongoose.connection.collection("users");
+    // Copie `followers` désaccordée : « lecteur » y figure sans suivre « auteur ».
+    await users.updateOne({ username: "auteur" }, { $addToSet: { followers: new mongoose.Types.ObjectId(reader.user._id) } });
+    try {
+      assert.deepEqual((await guest.get("/users/auteur/followers")).data.users.map((u) => u.username), ["autre"]);
+      const profile = (await reader.get("/users/auteur")).data.user;
+      assert.equal(profile.followersCount, 1);
+      assert.equal(profile.isFollowing, false);
+    } finally {
+      await users.updateOne({ username: "auteur" }, { $pull: { followers: new mongoose.Types.ObjectId(reader.user._id) } });
+    }
+  });
+
+  it("indique, pour chaque compte d'une liste, si on le suit et s'il nous suit", async () => {
+    let seen = await other.get("/users/autre/following");
+    assert.deepEqual(seen.data.users.map((u) => [u.username, u.isFollowing, u.followsYou, u.isMe]), [["auteur", true, false, false]]);
+    await author.post(`/users/${other.user._id}/follow`);
+    seen = await other.get("/users/autre/following");
+    assert.deepEqual(seen.data.users.map((u) => [u.username, u.followsYou]), [["auteur", true]]);
+    assert.deepEqual((await other.get("/users/auteur/followers")).data.users.map((u) => [u.username, u.isMe]), [["autre", true]]);
+    await author.post(`/users/${other.user._id}/follow`);
+  });
+
+  it("remet d'accord les listes d'abonnés avec pnpm repair:follows", async () => {
+    const users = mongoose.connection.collection("users");
+    await users.updateOne({ username: "auteur" }, { $addToSet: { followers: new mongoose.Types.ObjectId(reader.user._id) } });
+    const out = execFileSync(process.execPath, ["scripts/repair-follows.js"], {
+      cwd: path.join(__dirname, ".."),
+      env: process.env,
+      encoding: "utf8",
+    });
+    assert.match(out, /corrigée/);
+    const doc = await users.findOne({ username: "auteur" });
+    assert.deepEqual(doc.followers.map(String), [other.user._id]);
   });
 
   it("change le mot de passe et invalide les anciennes sessions", async () => {

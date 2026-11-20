@@ -293,7 +293,9 @@ export default function Profile({ username }: { username: string }) {
       {list && (
         <ConnectionsModal
           username={user.username}
+          name={user.name}
           type={list}
+          counts={{ followers: user.followersCount, following: user.followingCount }}
           onClose={() => setList(null)}
           // Sur son propre profil, suivre ou se désabonner depuis la liste change le nombre d'abonnements.
           onFollowChange={(following) =>

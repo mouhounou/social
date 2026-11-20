@@ -74,7 +74,8 @@ export type Notification = {
   following: boolean;
 };
 
-export type Connection = Author & { bio: string; isFollowing: boolean; isMe: boolean };
+/** Compte d'une liste d'abonnés ou d'abonnements, vu par l'utilisateur connecté. */
+export type Connection = Author & { bio: string; isFollowing: boolean; followsYou: boolean; isMe: boolean };
 
 export type Suggestion = Author & { followersCount: number; hint: string };
 
