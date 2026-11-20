@@ -1,6 +1,6 @@
 # Solola
 
-Espace de publication avec authentification : les auteurs publient des articles (titre, contenu, catégorie, image), tout le monde peut lire, et les membres connectés aiment, enregistrent, commentent et se suivent.
+Espace de publication avec authentification : les auteurs publient des articles (titre, contenu, catégorie, image, et des paragraphes facultatifs avec image ou vidéo), tout le monde peut lire, et les membres connectés aiment, enregistrent, commentent et se suivent.
 
 ```
 backend/   API Express + MongoDB (Mongoose), JWT, Nodemailer, Cloudinary
@@ -29,7 +29,7 @@ pnpm install
 pnpm dev               # http://localhost:5000
 ```
 
-Sans `SMTP_USER`, les emails ne partent pas : le code OTP est affiché dans la console de l'API, pratique en dev.
+Sans `SMTP_USER`, les emails ne partent pas : le code OTP est affiché dans la console de l'API, pratique en dev. Voir [Emails](#emails-code-otp) pour les configurer.
 
 La documentation interactive de l'API (Swagger) est sur http://localhost:5000/docs, et le document OpenAPI sur http://localhost:5000/docs.json. Dans Swagger, appelle `POST /auth/login` : le cookie de session est posé et les routes protégées marchent ensuite directement.
 
@@ -64,13 +64,15 @@ user/
     layout/     Navbar, Logo, Shortcuts
     ui/         Avatar, Modal, Spinner, RichText
     auth/       AuthField, RequireAuth, GuestOnly
-    post/       Feed, PostCard, PostForm, Composer, CommentInput, CategoryChips
+    post/       Feed, PostCard, PostForm, Composer, CommentInput, CategoryChips,
+                ParagraphsEditor, Paragraphs, MediaView
     profile/    ProfileCard, ProfileForm, FollowButton, SuggestionsCard...
     notification/ ActivityCard
     providers/  AuthInitializer (charge la session au démarrage)
   store/        stores zustand (authStore)
   hooks/        useAuth, useOutsideClick
-  lib/          axios.ts (instance + erreurs), api.ts (helper), constants.ts
+  lib/          axios.ts (instance + erreurs), api.ts (helper), constants.ts,
+                media.ts (liens vidéo, limites), draft.ts (brouillon du fil vers /posts/new)
   utils/        time, query, recovery
   types/        types partagés (User, Post, Comment...)
 ```
@@ -87,6 +89,22 @@ Ils créent leurs propres comptes (`e2e_auteur`, `e2e_lecteur`) et quelques arti
 
 Le front appelle `/api/*`, que Next réécrit vers `API_URL`. Le cookie de session est donc posé sur le même domaine que le front.
 
+## Paragraphes
+
+Une publication peut avoir des paragraphes, ou aucun : c'est facultatif. Chaque paragraphe a un **titre** (obligatoire, 150 caractères), une **description** (facultative, 5 000 caractères) et au plus **un média**, image ou vidéo :
+
+| Source | Ce qui se passe |
+| --- | --- |
+| Depuis l'appareil | Le fichier est envoyé sur Cloudinary. Image JPEG, PNG, WebP, GIF, AVIF (5 Mo) ou vidéo MP4, WebM, MOV (50 Mo). |
+| Lien YouTube, Vimeo ou Dailymotion | La vidéo reste chez elle et se lit dans son lecteur (YouTube passe par `youtube-nocookie.com`). |
+| Autre lien | Il doit mener directement à un fichier image ou vidéo : Cloudinary le récupère et en garde une copie, avec la source affichée sous le média. |
+
+Il y a 20 paragraphes au plus par publication. Les hashtags des descriptions deviennent des tags, et la recherche du fil porte aussi sur les paragraphes. Le formulaire complet (`/posts/new` et la modification) permet d'ajouter, réordonner et supprimer les paragraphes ; le bouton « Paragraphes » du formulaire rapide y mène en gardant ce qui est déjà saisi. Dans le fil, la carte indique le nombre de paragraphes, et une publication sans image de couverture montre la première image de ses paragraphes.
+
+Les publications d'avant n'ont rien à migrer : sans paragraphes, elles s'affichent et se modifient comme avant, et l'API renvoie `paragraphs: []`. Les requêtes sans champ `paragraphs` ne touchent pas aux paragraphes.
+
+Côté API, `paragraphs` est une liste JSON (une chaîne JSON en multipart) qui remplace la liste entière. Le média d'un paragraphe s'écrit `{ "file": n }` pour le n-ième fichier du champ `media`, `{ "link": "...", "type": "image" | "video" }` pour un lien, ou `{ "url": "..." }` pour garder le média actuel en modification. Les fichiers qui ne servent plus sont supprimés de Cloudinary. Le détail est dans Swagger.
+
 ## Profil
 
 Sans photo ou couverture, le front affiche `user/public/default-avatar.svg` et `user/public/default-cover.svg`.
@@ -99,7 +117,8 @@ Depuis sa page profil, l'utilisateur change directement sa couverture et son ava
 - En-têtes de sécurité (`helmet` côté API, `next.config.ts` côté front), site non intégrable dans une iframe, redirection après connexion limitée au site.
 - Anti-robots : l'inscription, la connexion et la demande de code passent par Cloudflare Turnstile (voir plus bas).
 - L'inscription ne confirme pas qu'un email a déjà un compte : le refus est le même message neutre, sans champ désigné. Le nom d'utilisateur, lui, est public (page de profil), donc « déjà pris » reste affiché.
-- Images acceptées : JPEG, PNG, WebP, GIF, AVIF (pas de SVG), 5 Mo au plus.
+- Images acceptées : JPEG, PNG, WebP, GIF, AVIF (pas de SVG), 5 Mo au plus. Vidéos des paragraphes : MP4, WebM, MOV, 50 Mo au plus, gardées sur le disque le temps de l'envoi puis effacées. Cloudinary revérifie le format à l'arrivée.
+- Médias par lien : seuls les liens `http(s)` sont acceptés (pas de `data:`, `file:`, `s3:`...). C'est Cloudinary qui va chercher le fichier, jamais l'API. Les lecteurs intégrés sont reconstruits à partir de l'identifiant de la vidéo, jamais à partir du lien fourni.
 - `pnpm test` contient une suite `security.test.js` qui vérifie chacun de ces points.
 
 En production :
@@ -121,6 +140,27 @@ Le widget est affiché sur l'inscription, la connexion et « mot de passe oubli�
 | `NEXT_PUBLIC_TURNSTILE_SITE_KEY` | Front | Facultatif : remplace la clé publique du widget (définie dans `user/lib/constants.ts`). |
 
 En développement, le front utilise la clé de test de Cloudflare (toujours validée) et l'API ne vérifie rien tant que `TURNSTILE_SECRET` est vide. Pour essayer la vérification en local, mets `TURNSTILE_SECRET=1x0000000000000000000000000000000AA` et `TURNSTILE_HOSTNAMES=localhost` ; les secrets `2x…AA` (toujours refusé) et `3x…AA` (jeton déjà utilisé) servent à tester les refus. Ces clés de test sont refusées quand `NODE_ENV=production`.
+
+## Emails (code OTP)
+
+Les codes de « mot de passe oublié » partent par SMTP (variables `SMTP_*` de `backend/.env`). Pour vérifier la configuration sans passer par le site :
+
+```bash
+cd backend
+pnpm mail:test ton@email.fr
+```
+
+La commande affiche ce qu'elle a lu dans `.env` (sans le mot de passe), teste la connexion et les identifiants, envoie un mail, et explique l'échec s'il y en a un. Au démarrage, l'API fait la même vérification et écrit `Emails : SMTP prêt` ou la cause du problème.
+
+| Symptôme | Cause | Solution |
+| --- | --- | --- |
+| « un code vient d'être envoyé » mais rien n'arrive, en local | `SMTP_USER` vide | Normal en dev : le code est dans la console de l'API. Sinon, remplis les variables `SMTP_*`. |
+| `identifiants SMTP refusés` | Avec Gmail, mot de passe du compte au lieu d'un mot de passe d'application | Active la validation en deux étapes, crée un mot de passe d'application (16 lettres) et mets-le dans `SMTP_PASS`. |
+| `serveur SMTP injoignable`, ou l'envoi prend 10 s puis échoue | Mauvais `SMTP_HOST` / `SMTP_PORT`, ou hébergeur qui bloque les ports SMTP | Essaie le port 465, le 2525 si ton fournisseur le propose, ou un service d'envoi par API. |
+| `adresse d'expéditeur refusée` | `MAIL_FROM` sur un domaine que ton compte SMTP ne peut pas utiliser | Laisse `MAIL_FROM` vide (l'expéditeur devient `Solola <SMTP_USER>`). |
+| Le mail est accepté mais n'arrive pas | Filtre anti-spam | Regarde les spams ; un expéditeur sur ton propre domaine (avec SPF et DKIM) arrive mieux. |
+
+En production (`NODE_ENV=production`) sans `SMTP_USER`, « mot de passe oublié » répond 503 au lieu d'annoncer un envoi qui n'a pas lieu, et le code n'est jamais écrit dans les journaux.
 
 ## Rôles
 
@@ -152,8 +192,8 @@ Le détail des paramètres, corps de requête et réponses est dans Swagger (`/d
 | GET     | `/api/posts?q=&category=&tag=&author=&sort=recent\|popular&page=` | public |
 | GET     | `/api/posts/categories`       | public         |
 | GET     | `/api/posts/:id`              | public         |
-| POST    | `/api/posts` (multipart)      | author, admin  |
-| PATCH   | `/api/posts/:id` (multipart)  | propriétaire, admin |
+| POST    | `/api/posts` (multipart ou JSON, paragraphes facultatifs) | author, admin  |
+| PATCH   | `/api/posts/:id` (multipart ou JSON) | propriétaire, admin |
 | DELETE  | `/api/posts/:id`              | propriétaire, admin |
 | POST    | `/api/posts/:id/like`         | connecté       |
 | POST    | `/api/posts/:id/save`         | connecté       |

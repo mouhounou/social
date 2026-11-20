@@ -1,19 +1,22 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 import Image from "next/image";
-import { Earth, Hash, ImageIcon, Smile, Tag, Users, X } from "lucide-react";
+import { Earth, Hash, ImageIcon, ListPlus, Smile, Tag, Users, X } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { api } from "@/lib/api";
 import type { Post } from "@/types";
 import Avatar from "@/components/ui/Avatar";
 import { CATEGORIES } from "@/lib/constants";
 import { MAX_TAGS } from "@/lib/tags";
+import { saveDraft } from "@/lib/draft";
 import TagInput from "@/components/post/TagInput";
 
 export default function Composer({ onCreated }: { onCreated: (post: Post) => void }) {
   const { user } = useAuth();
+  const router = useRouter();
   const fileRef = useRef<HTMLInputElement>(null);
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState("");
@@ -66,6 +69,12 @@ export default function Composer({ onCreated }: { onCreated: (post: Post) => voi
     setPreview(null);
     setOpen(false);
     setError("");
+  }
+
+  // Les paragraphes se rédigent dans le formulaire complet : ce qui est déjà saisi y est repris.
+  function openFullForm() {
+    saveDraft({ title, content, category, tags, visibility, file, preview });
+    router.push("/posts/new");
   }
 
   async function submit(e: React.FormEvent) {
@@ -168,6 +177,16 @@ export default function Composer({ onCreated }: { onCreated: (post: Post) => voi
         >
           <Hash className="size-5" />
           <span className="hidden sm:inline">Tags{tags.length > 0 && ` ${tags.length}/${MAX_TAGS}`}</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={openFullForm}
+          aria-label="Rédiger avec des paragraphes"
+          title="Rédiger avec des paragraphes"
+          className="flex items-center gap-2 hover:text-brand"
+        >
+          <ListPlus className="size-5" /> <span className="hidden lg:inline">Paragraphes</span>
         </button>
 
         <label className="flex min-w-0 items-center gap-2">

@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { Bookmark, EllipsisVertical, Heart, MessageCircle, Pencil, Send, Trash2, Users } from "lucide-react";
+import { Bookmark, EllipsisVertical, Heart, ListOrdered, MessageCircle, Pencil, Send, Trash2, Users } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useOutsideClick } from "@/hooks/useOutsideClick";
 import { api } from "@/lib/api";
@@ -13,7 +13,8 @@ import type { Post } from "@/types";
 import Avatar from "@/components/ui/Avatar";
 import CommentInput from "@/components/post/CommentInput";
 import RichText from "@/components/ui/RichText";
-import { extraTags } from "@/lib/tags";
+import Paragraphs from "@/components/post/Paragraphs";
+import { extraTags, postText } from "@/lib/tags";
 
 type Props = {
   post: Post;
@@ -37,9 +38,16 @@ export default function PostCard({ post: initial, full = false, onDeleted, onCom
   const [copied, setCopied] = useState(false);
 
   const isOwner = user && (user._id === post.author._id || user.role === "admin");
-  const long = !full && post.content.length > 280;
-  const tags = extraTags(post.tags ?? [], post.content);
-  const content = long ? post.content.slice(0, 280).trimEnd() + "…" : post.content;
+  const paragraphs = post.paragraphs ?? [];
+  const truncated = !full && post.content.length > 280;
+  const long = truncated || (!full && paragraphs.length > 0);
+  // Sur la page de l'article, les hashtags des paragraphes sont déjà des liens dans le texte.
+  const tags = extraTags(post.tags ?? [], full ? postText(post) : post.content);
+  const content = truncated ? post.content.slice(0, 280).trimEnd() + "…" : post.content;
+  // Dans le fil, une publication sans image de couverture montre la première image de ses paragraphes.
+  const image =
+    post.image ??
+    (full ? null : paragraphs.find((p) => p.media?.type === "image" && p.media.provider === "cloudinary")?.media?.url);
 
   async function toggle(kind: "like" | "save") {
     if (!user) return router.push("/login");
@@ -142,6 +150,15 @@ export default function PostCard({ post: initial, full = false, onDeleted, onCom
             </Link>
           )}
         </p>
+        {!full && paragraphs.length > 0 && (
+          <Link
+            href={`/posts/${post._id}`}
+            className="mt-2 inline-flex items-center gap-1.5 text-xs text-muted hover:text-brand"
+          >
+            <ListOrdered className="size-4" />
+            {paragraphs.length} paragraphe{paragraphs.length > 1 ? "s" : ""}
+          </Link>
+        )}
         {tags.length > 0 && (
           <p className="mt-2 flex flex-wrap gap-x-2 gap-y-1">
             {tags.map((tag) => (
@@ -153,10 +170,10 @@ export default function PostCard({ post: initial, full = false, onDeleted, onCom
         )}
       </div>
 
-      {post.image && (
+      {image && (
         <Link href={`/posts/${post._id}`} className="mt-4 block overflow-hidden rounded-2xl bg-field">
           <Image
-            src={post.image}
+            src={image}
             alt={post.title}
             width={1200}
             height={800}
@@ -165,6 +182,8 @@ export default function PostCard({ post: initial, full = false, onDeleted, onCom
           />
         </Link>
       )}
+
+      {full && <Paragraphs paragraphs={paragraphs} />}
 
       <footer className="mt-4 flex items-center gap-6 text-sm">
         <button onClick={() => toggle("like")} className="flex items-center gap-1.5">

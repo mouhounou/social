@@ -247,6 +247,29 @@ describe("fil et articles", () => {
     assert.deepEqual(p.errors, []);
   });
 
+  it("publie un article avec des paragraphes depuis le formulaire complet", async () => {
+    const p = await page();
+    await login(p, "e2e_auteur");
+    await p.goto(`${FRONT}/posts/new`);
+    const form = p.locator("form", { hasText: "Nouvelle publication" });
+    const title = `Paragraphes ${Date.now()}`;
+    await form.locator("input").first().fill(title);
+    await form.locator("textarea").first().fill("Introduction");
+    await form.getByRole("button", { name: "Ajouter un paragraphe" }).click();
+    await form.getByLabel("Titre du paragraphe 1").fill("Première partie");
+    await form.getByLabel("Description du paragraphe 1").fill("Le texte du paragraphe #e2e");
+    await form.getByRole("button", { name: "Ajouter un paragraphe" }).click();
+    await form.getByLabel("Titre du paragraphe 2").fill("La vidéo");
+    await form.getByRole("group", { name: "Média du paragraphe 2" }).getByRole("button", { name: "Par un lien" }).click();
+    await form.getByLabel("Lien du média").fill("https://youtu.be/dQw4w9WgXcQ");
+    await form.getByText("Vidéo YouTube : elle sera lue dans son lecteur.").waitFor();
+    await form.getByRole("button", { name: "Publier" }).click();
+    await p.waitForURL(/\/posts\/[a-f0-9]{24}$/);
+    await p.getByRole("heading", { name: "Première partie" }).waitFor();
+    await p.getByRole("heading", { name: "La vidéo" }).waitFor();
+    assert.equal(await p.locator("article iframe[src='https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ']").count(), 1);
+  });
+
   it("met à jour le compteur de la carte quand on commente", async () => {
     const p = await page();
     await login(p, "e2e_lecteur");

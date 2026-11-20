@@ -1,5 +1,6 @@
 const { describe, it, before, after } = require("node:test");
 const assert = require("node:assert/strict");
+const mongoose = require("mongoose");
 const { start, stop, client, signup, lastOtp, mailer } = require("./helpers");
 
 let author, reader, other, guest;
@@ -158,6 +159,152 @@ describe("articles", () => {
     assert.equal(res.status, 200);
     assert.deepEqual(res.data.post.tags, ["design"]);
     assert.equal((await author.patch(`/posts/${publicPost._id}`, { visibility: "secret" })).status, 400);
+  });
+});
+
+describe("paragraphes", () => {
+  const youtube = {
+    type: "video",
+    provider: "youtube",
+    url: "https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ",
+    link: "https://youtu.be/dQw4w9WgXcQ",
+  };
+
+  it("restent facultatifs", () => {
+    assert.deepEqual(publicPost.paragraphs, []);
+  });
+
+  it("lit et modifie les publications enregistrées avant les paragraphes", async () => {
+    const now = new Date();
+    const { insertedId } = await mongoose.connection.collection("posts").insertOne({
+      author: new mongoose.Types.ObjectId(author.user._id),
+      title: "Ancienne",
+      content: "Publiée avant les paragraphes",
+      category: "Autre",
+      tags: [],
+      visibility: "public",
+      likes: [],
+      saves: [],
+      commentsCount: 0,
+      createdAt: now,
+      updatedAt: now,
+    });
+    const id = insertedId.toString();
+
+    const read = await guest.get(`/posts/${id}`);
+    assert.equal(read.status, 200);
+    assert.deepEqual(read.data.post.paragraphs, []);
+    for (const sort of ["recent", "popular"]) {
+      const list = await guest.get(`/posts?q=Ancienne&sort=${sort}`);
+      assert.deepEqual(list.data.posts.map((p) => [p._id, p.paragraphs]), [[id, []]], sort);
+    }
+
+    const edited = await author.patch(`/posts/${id}`, { title: "Ancienne modifiée" });
+    assert.equal(edited.status, 200);
+    assert.deepEqual(edited.data.post.paragraphs, []);
+    const added = await author.patch(`/posts/${id}`, { paragraphs: [{ title: "Ajout" }] });
+    assert.deepEqual(added.data.post.paragraphs, [{ title: "Ajout", description: "", media: null }]);
+    assert.equal((await author.delete(`/posts/${id}`)).status, 200);
+  });
+
+  it("ont un titre, une description et une vidéo d'une autre plateforme", async () => {
+    const res = await author.post("/posts", {
+      title: "Carnet",
+      content: "Intro",
+      paragraphs: [
+        { title: "Belvedere", description: "Vue sur le fleuve #lisbonne" },
+        { title: "Le film", media: { link: "https://youtu.be/dQw4w9WgXcQ" } },
+      ],
+    });
+    assert.equal(res.status, 201);
+    const { post } = res.data;
+    assert.deepEqual(post.paragraphs, [
+      { title: "Belvedere", description: "Vue sur le fleuve #lisbonne", media: null },
+      { title: "Le film", description: "", media: youtube },
+    ]);
+    assert.deepEqual(post.tags, ["lisbonne"]);
+    assert.equal((await guest.get("/posts?q=belvedere")).data.total, 1);
+    assert.equal((await guest.get("/posts?tag=lisbonne")).data.total, 1);
+    assert.deepEqual((await guest.get(`/posts/${post._id}`)).data.post.paragraphs, post.paragraphs);
+    await author.delete(`/posts/${post._id}`);
+  });
+
+  it("se gardent, se réordonnent et se retirent en modification", async () => {
+    const { post } = (
+      await author.post("/posts", {
+        title: "Modif",
+        content: "c",
+        paragraphs: [{ title: "A", media: { link: "https://vimeo.com/76979871" } }, { title: "B" }],
+      })
+    ).data;
+    const vimeo = post.paragraphs[0].media;
+    assert.deepEqual(vimeo, {
+      type: "video",
+      provider: "vimeo",
+      url: "https://player.vimeo.com/video/76979871",
+      link: "https://vimeo.com/76979871",
+    });
+
+    const form = new FormData();
+    form.append("paragraphs", JSON.stringify([{ title: "B" }, { title: "A bis", media: { url: vimeo.url } }]));
+    let res = await author.patch(`/posts/${post._id}`, form);
+    assert.equal(res.status, 200);
+    assert.deepEqual(
+      res.data.post.paragraphs.map((p) => [p.title, p.media]),
+      [["B", null], ["A bis", vimeo]]
+    );
+
+    res = await author.patch(`/posts/${post._id}`, { title: "Modif 2" });
+    assert.equal(res.data.post.paragraphs.length, 2);
+
+    res = await author.patch(`/posts/${post._id}`, { paragraphs: [] });
+    assert.deepEqual(res.data.post.paragraphs, []);
+    await author.delete(`/posts/${post._id}`);
+  });
+
+  it("refusent les données invalides en désignant le champ en cause", async () => {
+    const cases = [
+      [[{ description: "sans titre" }], "paragraphs.0.title"],
+      [[{ title: "a" }, { title: { $ne: 1 } }], "paragraphs.1.title"],
+      [[{ title: "a", description: ["x"] }], "paragraphs.0.description"],
+      [[{ title: "a", media: { link: "javascript:alert(1)" } }], "paragraphs.0.media"],
+      [[{ title: "a", media: { link: "data:image/png;base64,AAAA" } }], "paragraphs.0.media"],
+      [[{ title: "a", media: { link: "https://exemple.fr/a.png", type: "pdf" } }], "paragraphs.0.media"],
+      [[{ title: "a", media: { url: "https://res.cloudinary.com/autre/image/upload/a.png" } }], "paragraphs.0.media"],
+      [[{ title: "a", media: { file: 0 } }], "paragraphs.0.media"],
+      [[{ title: "a".repeat(151) }], "paragraphs.0.title"],
+      [Array.from({ length: 21 }, () => ({ title: "a" })), "paragraphs"],
+      ["pas une liste", "paragraphs"],
+      [[null], "paragraphs"],
+    ];
+    for (const [paragraphs, field] of cases) {
+      const res = await author.post("/posts", { title: "Invalide", content: "c", paragraphs });
+      assert.equal(res.status, 400, field);
+      assert.equal(res.data.field, field);
+    }
+    const form = new FormData();
+    form.append("title", "Invalide");
+    form.append("content", "c");
+    form.append("paragraphs", "{oops");
+    assert.equal((await author.post("/posts", form)).status, 400);
+    assert.equal((await guest.get("/posts?q=Invalide")).data.total, 0);
+  });
+
+  it("envoient les fichiers sur Cloudinary et n'enregistrent rien quand il n'est pas configuré", async () => {
+    const form = new FormData();
+    form.append("title", "Avec média");
+    form.append("content", "x");
+    form.append("paragraphs", JSON.stringify([{ title: "Clip", media: { file: 0 } }]));
+    form.append("media", new Blob([Buffer.from("fake")], { type: "video/mp4" }), "clip.mp4");
+    assert.equal((await author.post("/posts", form)).status, 503);
+
+    const link = await author.post("/posts", {
+      title: "Avec média",
+      content: "x",
+      paragraphs: [{ title: "Photo", media: { link: "https://exemple.fr/photo.jpg", type: "image" } }],
+    });
+    assert.equal(link.status, 503);
+    assert.equal((await guest.get("/posts?q=Avec média")).data.total, 0);
   });
 });
 
@@ -329,6 +476,22 @@ describe("récupération de compte par OTP", () => {
     mailer.failNext = true;
     const res = await guest.post("/auth/forgot-password", { email: "lecteur@test.dev" });
     assert.equal(res.status, 502);
+    const verify = await guest.post("/auth/verify-otp", { email: "lecteur@test.dev", code: "123456" });
+    assert.equal(verify.data.message, "Code expiré, demande-en un nouveau");
+  });
+
+  it("n'annonce pas d'envoi en production quand SMTP n'est pas configuré, compte connu ou non", async () => {
+    const env = process.env.NODE_ENV;
+    process.env.NODE_ENV = "production";
+    try {
+      for (const email of ["lecteur@test.dev", "inconnu@test.dev"]) {
+        const res = await guest.post("/auth/forgot-password", { email });
+        assert.equal(res.status, 503, email);
+        assert.equal(res.data.message, "L'envoi d'emails n'est pas configuré sur le serveur, réessaie plus tard");
+      }
+    } finally {
+      process.env.NODE_ENV = env;
+    }
     const verify = await guest.post("/auth/verify-otp", { email: "lecteur@test.dev", code: "123456" });
     assert.equal(verify.data.message, "Code expiré, demande-en un nouveau");
   });
