@@ -62,15 +62,15 @@ user/
   app/          routes (App Router) et layouts : (auth) et (main)
   components/
     layout/     Navbar, Logo, Shortcuts
-    ui/         Avatar, Modal, Spinner, RichText
+    ui/         Avatar, Modal, Spinner, RichText, Pagination
     auth/       AuthField, RequireAuth, GuestOnly
-    post/       Feed, PostCard, PostForm, Composer, CommentInput, CategoryChips,
-                ParagraphsEditor, Paragraphs, MediaView
+    post/       Feed (fil infini), PostGrid + PostTile (grille paginée), PostCard, PostForm,
+                Composer, CommentInput, CategoryChips, ParagraphsEditor, Paragraphs, MediaView
     profile/    ProfileCard, ProfileForm, FollowButton, SuggestionsCard...
     notification/ ActivityCard
     providers/  AuthInitializer (charge la session au démarrage)
   store/        stores zustand (authStore)
-  hooks/        useAuth, useOutsideClick
+  hooks/        useAuth, useOutsideClick, usePostReactions (like et enregistrement)
   lib/          axios.ts (instance + erreurs), api.ts (helper), constants.ts,
                 media.ts (liens vidéo, limites), draft.ts (brouillon du fil vers /posts/new)
   utils/        time, query, recovery
@@ -88,6 +88,10 @@ npm run test:e2e                  # E2E_URL=http://localhost:3000 par défaut
 Ils créent leurs propres comptes (`e2e_auteur`, `e2e_lecteur`) et quelques articles dans la base de dev. Comme tout passe par la même adresse IP en local, les limites anti-abus de l'API (connexion, code OTP) peuvent se déclencher si on les relance beaucoup : redémarre l'API pour les remettre à zéro.
 
 Le front appelle `/api/*`, que Next réécrit vers `API_URL`. Le cookie de session est donc posé sur le même domaine que le front.
+
+## Fil et grilles
+
+L'accueil et Explorer affichent un fil à défilement infini. La page **Enregistrés** et le **profil** (ses publications, et l'onglet « Enregistrés » de son propre profil) affichent une grille paginée : 6 publications par page, 3 colonnes quand la place le permet (2 sur tablette, 1 sur mobile). La page, le tri et l'onglet sont dans l'adresse (`/u/awa?tab=saved&page=2`), donc le retour arrière ramène au même endroit.
 
 ## Paragraphes
 
