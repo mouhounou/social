@@ -388,6 +388,57 @@ describe("commentaires", () => {
     assert.equal((await guest.get(`/posts/${publicPost._id}`)).data.post.commentsCount, 0);
     assert.equal((await reader.post(`/posts/${publicPost._id}/comments`, { content: "   " })).status, 400);
   });
+
+  it("répond à un commentaire sur un seul niveau et prévient la bonne personne", async () => {
+    const root = (await reader.post(`/posts/${publicPost._id}/comments`, { content: "Question ?" })).data.comment;
+    assert.equal(root.parent, null);
+    assert.equal(root.repliesCount, 0);
+
+    const first = await author.post(`/posts/${publicPost._id}/comments`, { content: "Réponse", parent: root._id });
+    assert.equal(first.status, 201);
+    assert.equal(first.data.comment.parent, root._id);
+    assert.equal(first.data.comment.replyTo.username, "lecteur");
+    // Réponse à une réponse : même fil, adressée à l'auteur de la réponse.
+    const second = (await other.post(`/posts/${publicPost._id}/comments`, { content: "Moi aussi", parent: first.data.comment._id }))
+      .data.comment;
+    assert.equal(second.parent, root._id);
+    assert.equal(second.replyTo.username, "auteur");
+
+    const list = (await guest.get(`/posts/${publicPost._id}/comments`)).data.comments;
+    assert.deepEqual(list.map((c) => [c.content, c.repliesCount]), [["Question ?", 2]]);
+    const replies = (await guest.get(`/comments/${root._id}/replies`)).data.replies;
+    assert.deepEqual(replies.map((r) => [r.content, r.replyTo.username]), [["Réponse", "lecteur"], ["Moi aussi", "auteur"]]);
+    assert.equal((await guest.get(`/posts/${publicPost._id}`)).data.post.commentsCount, 3);
+
+    const readerNotifs = (await reader.get("/notifications?type=comment")).data.notifications;
+    assert.ok(readerNotifs.some((n) => n.type === "reply" && n.comment.content === "Réponse"));
+    const authorNotifs = (await author.get("/notifications?type=comment")).data.notifications;
+    assert.ok(authorNotifs.some((n) => n.type === "comment" && n.comment.content === "Question ?"));
+    // L'auteur de l'article est aussi celui à qui l'on répond : une seule notification.
+    assert.deepEqual(authorNotifs.filter((n) => n.comment?.content === "Moi aussi").map((n) => n.type), ["reply"]);
+
+    assert.equal((await reader.post(`/posts/${publicPost._id}/comments`, { content: "x", parent: { $ne: null } })).status, 400);
+    assert.equal((await reader.post(`/posts/${publicPost._id}/comments`, { content: "x", parent: "pas-un-id" })).status, 400);
+    const elsewhere = (await author.post("/posts", { title: "Ailleurs", content: "y" })).data.post;
+    assert.equal((await reader.post(`/posts/${elsewhere._id}/comments`, { content: "x", parent: root._id })).status, 404);
+    await author.delete(`/posts/${elsewhere._id}`);
+
+    // Supprimer une réponse décompte le fil ; supprimer le commentaire emporte ses réponses et leurs notifications.
+    assert.equal((await author.delete(`/comments/${first.data.comment._id}`)).data.removed, 1);
+    assert.equal((await guest.get(`/posts/${publicPost._id}/comments`)).data.comments[0].repliesCount, 1);
+    assert.equal((await reader.delete(`/comments/${root._id}`)).data.removed, 2);
+    assert.equal((await guest.get(`/comments/${root._id}/replies`)).status, 404);
+    assert.equal((await guest.get(`/posts/${publicPost._id}`)).data.post.commentsCount, 0);
+    const left = (await author.get("/notifications?type=comment")).data.notifications;
+    assert.equal(left.filter((n) => ["Question ?", "Moi aussi"].includes(n.comment?.content)).length, 0);
+  });
+
+  it("cache les réponses d'une publication réservée aux abonnés", async () => {
+    const c = (await author.post(`/posts/${privatePost._id}/comments`, { content: "Note" })).data.comment;
+    assert.equal((await guest.get(`/comments/${c._id}/replies`)).status, 403);
+    assert.equal((await author.get(`/comments/${c._id}/replies`)).status, 200);
+    await author.delete(`/comments/${c._id}`);
+  });
 });
 
 describe("notifications", () => {

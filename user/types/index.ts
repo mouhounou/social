@@ -60,13 +60,18 @@ export type Comment = {
   _id: string;
   content: string;
   post: string;
+  /** Commentaire de premier niveau auquel cette réponse est rattachée ; null pour un commentaire. */
+  parent: string | null;
+  /** Personne à qui la réponse s'adresse. */
+  replyTo: { _id: string; name: string; username: string } | null;
+  repliesCount: number;
   author: Author;
   createdAt: string;
 };
 
 export type Notification = {
   _id: string;
-  type: "like" | "comment" | "follow";
+  type: "like" | "comment" | "reply" | "follow";
   read: boolean;
   createdAt: string;
   actor: Author;

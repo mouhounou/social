@@ -19,7 +19,12 @@ type Filter = "all" | Notification["type"];
 const FILTERS: { key: Filter; label: string; icon: typeof Bell; empty: string }[] = [
   { key: "all", label: "Tout", icon: Bell, empty: "Quand quelqu'un aimera, commentera ou commencera à te suivre, tu le verras ici." },
   { key: "like", label: "J'aime", icon: Heart, empty: "Personne n'a encore aimé tes publications." },
-  { key: "comment", label: "Commentaires", icon: MessageCircle, empty: "Personne n'a encore commenté tes publications." },
+  {
+    key: "comment",
+    label: "Commentaires",
+    icon: MessageCircle,
+    empty: "Personne n'a encore commenté tes publications ni répondu à tes commentaires.",
+  },
   { key: "follow", label: "Abonnés", icon: UserPlus, empty: "Personne ne t'a encore suivi." },
 ];
 

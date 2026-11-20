@@ -244,6 +244,14 @@ module.exports = {
           _id: objectId,
           content: { type: "string", maxLength: 1000 },
           post: objectId,
+          parent: { ...objectId, nullable: true, description: "Commentaire de premier niveau auquel la réponse est rattachée ; null pour un commentaire" },
+          replyTo: {
+            type: "object",
+            nullable: true,
+            description: "Personne à qui la réponse s'adresse",
+            properties: { _id: objectId, name: { type: "string" }, username: { type: "string" } },
+          },
+          repliesCount: { type: "integer", description: "Nombre de réponses (commentaires de premier niveau)" },
           author: ref("Author"),
           createdAt: { type: "string", format: "date-time" },
         },
@@ -256,7 +264,7 @@ module.exports = {
         type: "object",
         properties: {
           _id: objectId,
-          type: { type: "string", enum: ["like", "comment", "follow"] },
+          type: { type: "string", enum: ["like", "comment", "reply", "follow"], description: "`reply` : réponse à l'un de tes commentaires" },
           read: { type: "boolean" },
           createdAt: { type: "string", format: "date-time" },
           actor: ref("Author"),
@@ -555,6 +563,7 @@ module.exports = {
       get: {
         tags: ["Commentaires"],
         summary: "Commentaires d'un article",
+        description: "Seulement les commentaires de premier niveau ; leurs réponses se lisent avec `GET /comments/{id}/replies`.",
         security: optionalMember,
         responses: {
           200: ok("Commentaires, du plus ancien au plus récent", {
@@ -566,16 +575,36 @@ module.exports = {
       },
       post: {
         tags: ["Commentaires"],
-        summary: "Commenter",
+        summary: "Commenter, ou répondre à un commentaire",
+        description:
+          "Avec `parent`, le commentaire est une réponse. Il n'y a qu'un niveau de réponses : répondre à une réponse " +
+          "rattache la nouvelle réponse au même commentaire, en l'adressant à l'auteur de la réponse. La personne à qui " +
+          "l'on répond reçoit une notification `reply`, l'auteur de l'article une notification `comment`.",
         security: member,
         requestBody: body({
           type: "object",
           required: ["content"],
-          properties: { content: { type: "string", maxLength: 1000, example: "Superbe !" } },
+          properties: {
+            content: { type: "string", maxLength: 1000, example: "Superbe !" },
+            parent: { ...objectId, description: "Commentaire ou réponse auquel on répond" },
+          },
         }),
         responses: {
           201: ok("Commentaire ajouté", { type: "object", properties: { comment: ref("Comment") } }),
           ...pick(400, 401, 403, 404),
+        },
+      },
+    },
+    "/comments/{id}/replies": {
+      parameters: [idParam("Identifiant du commentaire")],
+      get: {
+        tags: ["Commentaires"],
+        summary: "Réponses à un commentaire",
+        description: "Du plus ancien au plus récent. Mêmes règles de visibilité que l'article.",
+        security: optionalMember,
+        responses: {
+          200: ok("Réponses", { type: "object", properties: { replies: { type: "array", items: ref("Comment") } } }),
+          ...pick(400, 403, 404),
         },
       },
     },
@@ -584,9 +613,19 @@ module.exports = {
       delete: {
         tags: ["Commentaires"],
         summary: "Supprimer un commentaire",
-        description: "Autorisé à l'auteur du commentaire, à l'auteur de l'article et aux admins.",
+        description:
+          "Autorisé à l'auteur du commentaire, à l'auteur de l'article et aux admins. Un commentaire part avec ses réponses.",
         security: member,
-        responses: { 200: ok("Commentaire supprimé", ref("Message")), ...pick(401, 403, 404) },
+        responses: {
+          200: ok("Commentaire supprimé", {
+            type: "object",
+            properties: {
+              message: { type: "string" },
+              removed: { type: "integer", description: "Commentaires supprimés, réponses comprises" },
+            },
+          }),
+          ...pick(401, 403, 404),
+        },
       },
     },
     "/users/me": {
@@ -715,7 +754,12 @@ module.exports = {
         security: member,
         parameters: [
           { name: "limit", in: "query", schema: { type: "integer", minimum: 1, maximum: 50, default: 20 } },
-          { name: "type", in: "query", description: "Seulement ce type", schema: { type: "string", enum: ["like", "comment", "follow"] } },
+          {
+            name: "type",
+            in: "query",
+            description: "Seulement ce type ; `comment` comprend aussi les réponses (`reply`)",
+            schema: { type: "string", enum: ["like", "comment", "follow"] },
+          },
           { name: "page", in: "query", schema: { type: "integer", minimum: 1, default: 1 } },
         ],
         responses: {

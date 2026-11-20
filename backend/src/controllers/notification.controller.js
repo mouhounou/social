@@ -3,6 +3,8 @@ const AppError = require("../utils/AppError");
 const { text, positiveInt } = require("../utils/input");
 
 const TYPES = ["like", "comment", "follow"];
+// Le filtre « comment » couvre aussi les réponses à ses commentaires.
+const FILTERS = { like: "like", comment: { $in: ["comment", "reply"] }, follow: "follow" };
 
 // Filtre facultatif par type, et pagination classique : `page` et `limit` (20 par défaut, 50 au plus).
 async function listNotifications(req, res) {
@@ -12,7 +14,7 @@ async function listNotifications(req, res) {
   if (type && !TYPES.includes(type)) throw new AppError("Type de notification inconnu");
 
   const filter = { recipient: req.user._id };
-  if (type) filter.type = type;
+  if (type) filter.type = FILTERS[type];
 
   const [rows, total] = await Promise.all([
     Notification.find(filter)
