@@ -307,7 +307,8 @@ describe("fil et articles", () => {
     await login(p, "e2e_lecteur");
     await p.goto(`${FRONT}/u/e2e_lecteur`);
     await p.getByRole("button", { name: /Abonnements/ }).click();
-    const list = p.getByRole("dialog", { name: "Abonnements" });
+    const list = p.getByRole("dialog", { name: "e2e_lecteur" });
+    await list.getByRole("tab", { name: /Abonnements/, selected: true }).waitFor();
     const confirm = p.getByRole("alertdialog");
 
     await list.getByRole("button", { name: "Abonné à e2e_auteur, se désabonner" }).click();

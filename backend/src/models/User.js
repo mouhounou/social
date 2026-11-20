@@ -53,6 +53,9 @@ userSchema.pre("save", async function () {
   if (!this.isNew) this.passwordChangedAt = new Date(Date.now() - 1000);
 });
 
+// Retrouver les abonnés d'un compte : ceux dont `following` le contient.
+userSchema.index({ following: 1 });
+
 userSchema.methods.comparePassword = function (plain) {
   return bcrypt.compare(plain, this.password);
 };

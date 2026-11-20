@@ -6,10 +6,15 @@ const { optionalText, PASSWORD_MIN } = require("../utils/input");
 const { uploadBuffer, removeImage } = require("../config/cloudinary");
 const { signToken, setAuthCookie } = require("../utils/token");
 
+// Qui suit qui : la référence est le tableau `following` de chaque compte, celui qui ouvre les
+// publications réservées aux abonnés. Le tableau `followers` n'en est qu'une copie, qui a pu diverger.
+const followersOf = (user) => ({ following: user._id, isBlocked: { $ne: true } });
+const followedBy = (user) => ({ _id: { $in: user.following }, isBlocked: { $ne: true } });
+
 function profileOf(user, viewer) {
   const data = user.toPublic();
   delete data.email;
-  data.isFollowing = viewer ? user.followers.some((id) => id.equals(viewer._id)) : false;
+  data.isFollowing = viewer ? viewer.following.some((id) => id.equals(user._id)) : false;
   data.isMe = viewer ? user._id.equals(viewer._id) : false;
   return data;
 }
@@ -18,8 +23,13 @@ async function getProfile(req, res) {
   const user = await User.findOne({ username: req.params.username.toLowerCase() });
   if (!user || user.isBlocked) throw new AppError("Utilisateur introuvable", 404);
 
-  const postsCount = await Post.countDocuments({ author: user._id });
-  res.json({ user: { ...profileOf(user, req.user), postsCount } });
+  // Mêmes règles que les listes d'abonnés et d'abonnements : les nombres affichés leur correspondent.
+  const [postsCount, followersCount, followingCount] = await Promise.all([
+    Post.countDocuments({ author: user._id }),
+    User.countDocuments(followersOf(user)),
+    User.countDocuments(followedBy(user)),
+  ]);
+  res.json({ user: { ...profileOf(user, req.user), postsCount, followersCount, followingCount } });
 }
 
 async function myStats(req, res) {
@@ -80,24 +90,30 @@ async function changePassword(req, res) {
 
 function connections(field) {
   return async (req, res) => {
-    const user = await User.findOne({ username: req.params.username.toLowerCase() }).populate(
-      field,
-      "name username avatar bio isBlocked"
-    );
-    if (!user) throw new AppError("Utilisateur introuvable", 404);
+    const user = await User.findOne({ username: req.params.username.toLowerCase() }).select("followers following isBlocked");
+    if (!user || user.isBlocked) throw new AppError("Utilisateur introuvable", 404);
 
-    const following = new Set((req.user?.following || []).map(String));
-    const users = user[field]
-      .filter((u) => !u.isBlocked)
-      .map((u) => ({
-        _id: u._id,
-        name: u.name,
-        username: u.username,
-        avatar: u.avatar?.url || null,
-        bio: u.bio,
-        isFollowing: following.has(String(u._id)),
-        isMe: req.user ? u._id.equals(req.user._id) : false,
-      }));
+    // « Abonnés » : seulement les comptes qui suivent vraiment celui-ci.
+    const people = await User.find(field === "followers" ? followersOf(user) : followedBy(user)).select(
+      "name username avatar bio following"
+    );
+    // Les plus récents d'abord : les tableaux gardent l'ordre des abonnements.
+    const rank = new Map([...user[field]].reverse().map((id, i) => [String(id), i]));
+    const position = (u) => rank.get(String(u._id)) ?? rank.size;
+    people.sort((a, b) => position(a) - position(b));
+
+    const viewer = req.user;
+    const followed = new Set((viewer?.following || []).map(String));
+    const users = people.map((u) => ({
+      _id: u._id,
+      name: u.name,
+      username: u.username,
+      avatar: u.avatar?.url || null,
+      bio: u.bio,
+      isFollowing: followed.has(String(u._id)),
+      followsYou: viewer ? u.following.some((id) => id.equals(viewer._id)) : false,
+      isMe: viewer ? u._id.equals(viewer._id) : false,
+    }));
 
     res.json({ users });
   };
