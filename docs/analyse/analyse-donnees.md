@@ -9,7 +9,7 @@ Modèle Merise du backend (`backend/src/models`), en deux niveaux :
 
 > L'image est un aperçu généré à partir du fichier, pour le lire sans Looping. Dans Looping, le rendu suit son propre style ; les objets se déplacent librement si tu veux réorganiser le schéma.
 
-> L'entité PARAGRAPHE et l'association `contenir` (règle 6) sont décrites ici mais pas encore dessinées dans `solola.loo` ni dans l'aperçu : à ajouter dans Looping (ARTICLE **0,n** — `contenir` — **1,1** PARAGRAPHE).
+> L'entité PARAGRAPHE et l'association `contenir` (règle 6), ainsi que les associations `repondre` et `adresser` des réponses (règle 8), sont décrites ici mais pas encore dessinées dans `solola.loo` ni dans l'aperçu : à ajouter dans Looping.
 
 ## Règles de gestion
 
@@ -20,9 +20,9 @@ Modèle Merise du backend (`backend/src/models`), en deux niveaux :
 5. Un article est **public** ou réservé aux **abonnés** de son auteur.
 6. Un article contient zéro ou plusieurs **paragraphes** (20 au plus), dans un ordre choisi par l'auteur. Un paragraphe appartient à un seul article. Il a un titre, une description facultative et au plus un média : une image ou une vidéo, envoyée depuis l'appareil ou récupérée sur une autre plateforme par son lien.
 7. Un utilisateur connecté peut aimer et enregistrer autant d'articles qu'il veut, une seule fois chacun.
-8. Un commentaire est écrit par un seul utilisateur et concerne un seul article.
+8. Un commentaire est écrit par un seul utilisateur et concerne un seul article. Il peut répondre à un autre commentaire du même article, sur un seul niveau : une réponse se rattache toujours à un commentaire de premier niveau, et s'adresse à un utilisateur (celui à qui l'on répond).
 9. Un utilisateur peut suivre d'autres utilisateurs ; il ne peut pas se suivre lui-même.
-10. Une notification est envoyée à un destinataire et déclenchée par un autre utilisateur. Elle vise un article pour un like ou un commentaire, et aucun pour un abonnement.
+10. Une notification est envoyée à un destinataire et déclenchée par un autre utilisateur. Elle vise un article pour un like, un commentaire ou une réponse (avec le commentaire concerné), et aucun pour un abonnement.
 11. Pour récupérer son compte, un utilisateur demande un code à 6 chiffres. Ce code expire après 10 minutes et accepte 5 essais au plus.
 
 ## MCD
@@ -38,6 +38,8 @@ Modèle Merise du backend (`backend/src/models`), en deux niveaux :
 | `suivre` | UTILISATEUR **0,n** (abonné) | UTILISATEUR **0,n** (suivi) | Abonnements, association réflexive |
 | `ecrire` | UTILISATEUR **0,n** | COMMENTAIRE **1,1** | Auteur d'un commentaire |
 | `concerner` | COMMENTAIRE **1,1** | ARTICLE **0,n** | Article commenté |
+| `repondre` | COMMENTAIRE **0,1** (réponse) | COMMENTAIRE **0,n** (commentaire) | Réponses à un commentaire, association réflexive |
+| `adresser` | COMMENTAIRE **0,1** (réponse) | UTILISATEUR **0,n** | Personne à qui la réponse s'adresse |
 | `recevoir` | UTILISATEUR **0,n** (destinataire) | NOTIFICATION **1,1** | Destinataire |
 | `declencher` | UTILISATEUR **0,n** (auteur) | NOTIFICATION **1,1** | Auteur de l'action |
 | `viser` | NOTIFICATION **0,1** | ARTICLE **0,n** | Article concerné, s'il y en a un |
@@ -52,7 +54,7 @@ Notation : clé primaire <u>soulignée</u>, clé étrangère précédée de `#`.
 - **PARAGRAPHE** ( <u>id_paragraphe</u>, ordre, titre_paragraphe, description, media_type, media_fournisseur, media_url, media_public_id, media_lien, #id_article )
 - **CATEGORIE** ( <u>id_categorie</u>, libelle )
 - **HASHTAG** ( <u>libelle_hashtag</u> )
-- **COMMENTAIRE** ( <u>id_commentaire</u>, contenu_commentaire, cree_le, modifie_le, #id_utilisateur, #id_article )
+- **COMMENTAIRE** ( <u>id_commentaire</u>, contenu_commentaire, nb_reponses, cree_le, modifie_le, #id_utilisateur, #id_article, #id_commentaire_1, #id_utilisateur_1 )
 - **NOTIFICATION** ( <u>id_notification</u>, type_notification, lue, cree_le, modifie_le, #id_utilisateur, #id_utilisateur_1, #id_article )
 - **CODE_OTP** ( <u>id_code</u>, email_demande, code_hash, essais, verifie, jeton_hash, expire_le, cree_le, #id_utilisateur )
 - **aimer** ( <u>#id_utilisateur</u>, <u>#id_article</u> )
@@ -69,6 +71,8 @@ Notation : clé primaire <u>soulignée</u>, clé étrangère précédée de `#`.
 | PARAGRAPHE | id_article | ARTICLE.id_article | oui | `contenir` |
 | COMMENTAIRE | id_utilisateur | UTILISATEUR.id_utilisateur | oui | `ecrire` |
 | COMMENTAIRE | id_article | ARTICLE.id_article | oui | `concerner` |
+| COMMENTAIRE | id_commentaire_1 | COMMENTAIRE.id_commentaire | non | `repondre` (commentaire de premier niveau) |
+| COMMENTAIRE | id_utilisateur_1 | UTILISATEUR.id_utilisateur | non | `adresser` (personne à qui l'on répond) |
 | NOTIFICATION | id_utilisateur | UTILISATEUR.id_utilisateur | oui | `recevoir` (destinataire) |
 | NOTIFICATION | id_utilisateur_1 | UTILISATEUR.id_utilisateur | oui | `declencher` (auteur de l'action) |
 | NOTIFICATION | id_article | ARTICLE.id_article | non | `viser` |
@@ -118,9 +122,10 @@ Quand une table reçoit deux fois la même clé, Looping suffixe la seconde (`_1
 | HASHTAG | libelle_hashtag | VARCHAR(50) | identifiant | en minuscules, sans `#` ; 15 par article au plus |
 | COMMENTAIRE | id_commentaire | COUNTER | identifiant | |
 | | contenu_commentaire | VARCHAR(1000) | non nul | |
+| | nb_reponses | INT | non nul | compteur dénormalisé, 0 pour une réponse |
 | | cree_le, modifie_le | DATETIME | non nul | |
 | NOTIFICATION | id_notification | COUNTER | identifiant | |
-| | type_notification | VARCHAR(10) | non nul | `like`, `comment` ou `follow` |
+| | type_notification | VARCHAR(10) | non nul | `like`, `comment`, `reply` ou `follow` |
 | | lue | BOOLEAN | non nul | |
 | | cree_le, modifie_le | DATETIME | non nul | |
 | CODE_OTP | id_code | COUNTER | identifiant | |
@@ -145,6 +150,7 @@ Le backend utilise MongoDB : certaines associations ne sont pas des collections 
 | `aimer`, `enregistrer` | tableaux `likes` et `saves` de `posts` (identifiants d'utilisateurs) |
 | `suivre` | tableaux `following` et `followers` de `users`, tenus à jour ensemble |
 | `publier`, `ecrire`, `concerner` | champs `author` et `post` |
+| `repondre`, `adresser` | champs `parent` et `replyTo` de `comments` (vides pour un commentaire de premier niveau) |
 | `recevoir`, `declencher`, `viser` | champs `recipient`, `actor` et `post` de `notifications` |
 | `demander` | lien par le champ `email` de `otps`, pas par l'identifiant |
 | images (avatar, couverture, article) | sous-document `{ url, publicId }` |

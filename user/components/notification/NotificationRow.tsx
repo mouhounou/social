@@ -1,6 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
-import { FileText, Heart, MessageCircle, UserPlus } from "lucide-react";
+import { FileText, Heart, MessageCircle, Reply, UserPlus } from "lucide-react";
 import type { Author } from "@/types";
 import type { Entry } from "@/utils/notifications";
 import { timeAgo } from "@/utils/time";
@@ -10,12 +10,14 @@ import FollowButton from "@/components/profile/FollowButton";
 const BADGES = {
   like: { icon: Heart, className: "bg-red-500", fill: true },
   comment: { icon: MessageCircle, className: "bg-brand", fill: false },
+  reply: { icon: Reply, className: "bg-indigo-500", fill: false },
   follow: { icon: UserPlus, className: "bg-emerald-500", fill: false },
 };
 
 const VERBS = {
   like: ["a aimé ta publication", "ont aimé ta publication"],
   comment: ["a commenté ta publication", "ont commenté ta publication"],
+  reply: ["a répondu à ton commentaire", "ont répondu à ton commentaire"],
   follow: ["a commencé à te suivre.", "ont commencé à te suivre."],
 };
 
@@ -39,7 +41,8 @@ function Actors({ actors }: { actors: Author[] }) {
 export default function NotificationRow({ entry }: { entry: Entry }) {
   const { type, actors, post, comment, unread } = entry;
   const badge = BADGES[type];
-  const target = type === "follow" || !post ? `/u/${actors[0].username}` : `/posts/${post._id}${type === "comment" ? "#comments" : ""}`;
+  const target =
+    type === "follow" || !post ? `/u/${actors[0].username}` : `/posts/${post._id}${type === "like" ? "" : "#comments"}`;
   const verb = VERBS[type][actors.length > 1 ? 1 : 0];
 
   return (
@@ -67,7 +70,12 @@ export default function NotificationRow({ entry }: { entry: Entry }) {
       <div className="min-w-0 flex-1 pt-0.5">
         <p className="line-clamp-2 text-sm leading-snug">
           <Actors actors={actors} /> <span className="text-muted">{verb}</span>
-          {post && type !== "follow" && <span className="font-medium"> « {post.title} »</span>}
+          {post && type !== "follow" && (
+            <>
+              {type === "reply" && <span className="text-muted"> sur</span>}
+              <span className="font-medium"> « {post.title} »</span>
+            </>
+          )}
         </p>
         {comment && (
           <p className="mt-2 rounded-xl bg-white px-3 py-2 text-sm text-ink ring-1 ring-line">
