@@ -1,6 +1,6 @@
 const mongoose = require("mongoose");
 const bcrypt = require("bcrypt");
-const { EMAIL_RE } = require("../utils/input");
+const { EMAIL_RE, PASSWORD_MIN } = require("../utils/input");
 
 const imageSchema = new mongoose.Schema(
   { url: String, publicId: String },
@@ -16,7 +16,7 @@ const userSchema = new mongoose.Schema(
       unique: true,
       lowercase: true,
       trim: true,
-      match: [/^[a-z0-9_.]{3,30}$/, "Nom d'utilisateur invalide"],
+      match: [/^[a-z0-9_.]{3,30}$/, "Nom d'utilisateur invalide : 3 à 30 caractères (lettres, chiffres, _ ou .)"],
     },
     email: {
       type: String,
@@ -26,7 +26,7 @@ const userSchema = new mongoose.Schema(
       trim: true,
       match: [EMAIL_RE, "Adresse email invalide"],
     },
-    password: { type: String, required: true, minlength: 6, select: false },
+    password: { type: String, required: true, minlength: PASSWORD_MIN, select: false },
     passwordChangedAt: { type: Date, select: false },
     role: { type: String, enum: ["reader", "author", "admin"], default: "reader" },
     bio: { type: String, maxlength: 160, default: "" },
@@ -52,6 +52,9 @@ userSchema.pre("save", async function () {
   this.password = await bcrypt.hash(this.password, 10);
   if (!this.isNew) this.passwordChangedAt = new Date(Date.now() - 1000);
 });
+
+// Retrouver les abonnés d'un compte : ceux dont `following` le contient.
+userSchema.index({ following: 1 });
 
 userSchema.methods.comparePassword = function (plain) {
   return bcrypt.compare(plain, this.password);

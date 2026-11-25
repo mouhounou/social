@@ -2,10 +2,12 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import AuthField from "@/components/auth/AuthField";
+import Turnstile, { type TurnstileHandle } from "@/components/auth/Turnstile";
 import { useAuth } from "@/hooks/useAuth";
-import { api } from "@/lib/api";
+import { api, type ApiError } from "@/lib/api";
+import { collectErrors, focusField } from "@/utils/validation";
 import type { User } from "@/types";
 
 function safeNext() {
@@ -25,23 +27,37 @@ export default function LoginPage() {
   const { setUser } = useAuth();
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
+  const [errors, setErrors] = useState<{ identifier?: string; password?: string }>({});
   const [error, setError] = useState("");
+  const [robotError, setRobotError] = useState("");
   const [loading, setLoading] = useState(false);
+  const turnstile = useRef<TurnstileHandle>(null);
 
-  async function submit(e: React.FormEvent) {
+  async function submit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    const { errors: found, first } = collectErrors({
+      identifier: identifier.trim() ? "" : "Indique ton email ou ton nom d'utilisateur",
+      password: password ? "" : "Indique ton mot de passe",
+    });
+    setErrors(found);
     setError("");
+    setRobotError("");
+    if (first) return focusField(e.currentTarget, first);
+
     setLoading(true);
     try {
       const { user } = await api<{ user: User }>("/auth/login", {
         method: "POST",
-        body: { identifier, password },
+        body: { identifier, password, ...(await turnstile.current?.payload()) },
       });
       setUser(user);
       router.replace(safeNext());
       router.refresh();
     } catch (err) {
-      setError((err as Error).message);
+      const { message, field } = err as ApiError;
+      turnstile.current?.reset();
+      if (field === "turnstile") setRobotError(message);
+      else setError(message);
       setLoading(false);
     }
   }
@@ -51,21 +67,32 @@ export default function LoginPage() {
       <h1 className="text-center text-3xl font-bold tracking-tight">Content de te revoir</h1>
       <p className="mt-2 text-center text-xs text-muted">Connecte-toi pour retrouver ton fil.</p>
 
-      <form onSubmit={submit} className="mt-10 space-y-6">
+      <form onSubmit={submit} noValidate className="mt-10 space-y-6">
         <AuthField
           label="Email ou nom d'utilisateur"
+          name="identifier"
           value={identifier}
-          onChange={(e) => setIdentifier(e.target.value)}
+          onChange={(e) => {
+            setIdentifier(e.target.value);
+            setErrors((errs) => ({ ...errs, identifier: "" }));
+          }}
+          error={errors.identifier}
           autoComplete="username"
-          required
+          autoCapitalize="none"
+          autoCorrect="off"
+          spellCheck={false}
         />
         <AuthField
           label="Mot de passe"
+          name="password"
           type="password"
           value={password}
-          onChange={(e) => setPassword(e.target.value)}
+          onChange={(e) => {
+            setPassword(e.target.value);
+            setErrors((errs) => ({ ...errs, password: "" }));
+          }}
+          error={errors.password}
           autoComplete="current-password"
-          required
         />
 
         <div className="-mt-2 text-right">
@@ -73,6 +100,8 @@ export default function LoginPage() {
             Mot de passe oublié ?
           </Link>
         </div>
+
+        <Turnstile ref={turnstile} action="login" error={robotError} />
 
         {error && <p className="alert-error">{error}</p>}
 

@@ -69,6 +69,25 @@ describe("envoi d'images", () => {
       assert.equal(res.status, 400, type);
     }
   });
+
+  it("refuse le SVG et les fichiers non média dans les paragraphes", async () => {
+    for (const [type, name] of [["image/svg+xml", "x.svg"], ["text/html", "x.html"], ["application/pdf", "x.pdf"]]) {
+      const form = new FormData();
+      form.append("title", "t");
+      form.append("content", "c");
+      form.append("paragraphs", JSON.stringify([{ title: "p", media: { file: 0 } }]));
+      form.append("media", new Blob(["<svg onload=alert(1)>"], { type }), name);
+      const res = await author.post("/posts", form);
+      assert.equal(res.status, 400, type);
+    }
+  });
+
+  it("n'envoie à Cloudinary que des liens http(s)", async () => {
+    for (const link of ["data:image/png;base64,AAAA", "file:///etc/passwd", "s3://seau/a.png", "gs://seau/a.png"]) {
+      const res = await author.post("/posts", { title: "t", content: "c", paragraphs: [{ title: "p", media: { link } }] });
+      assert.equal(res.status, 400, link);
+    }
+  });
 });
 
 describe("connexion", () => {
@@ -110,6 +129,89 @@ describe("limites anti-abus", () => {
       }
       assert.equal(statuses.filter((s) => s === 401).length, 10);
       assert.equal(statuses.at(-1), 429);
+    }));
+});
+
+describe("anti-robots (Turnstile)", () => {
+  const TOKEN = "cf-turnstile-response";
+  const realFetch = global.fetch;
+  let verdict;
+  let sent;
+
+  // Active la protection et simule Cloudflare ; les appels à l'API de test passent normalement.
+  function withTurnstile(fn) {
+    const warn = console.warn;
+    sent = [];
+    console.warn = () => {};
+    global.fetch = async (url, init) => {
+      if (!String(url).includes("/turnstile/v0/siteverify")) return realFetch(url, init);
+      sent.push(Object.fromEntries(init.body));
+      if (verdict instanceof Error) throw verdict;
+      return Response.json(verdict);
+    };
+    return withEnv({ TURNSTILE_SECRET: "secret-de-test", TURNSTILE_HOSTNAMES: "solola.test, www.solola.test" }, fn).finally(() => {
+      global.fetch = realFetch;
+      console.warn = warn;
+    });
+  }
+
+  const pass = (action) => ({ success: true, action, hostname: "solola.test" });
+  const account = (n) => ({ name: "Robot", username: `secu_robot${n}`, email: `secu_robot${n}@test.dev`, password: "secret1" });
+
+  it("refuse l'inscription sans jeton, sans interroger Cloudflare", () =>
+    withTurnstile(async () => {
+      const res = await client().post("/auth/register", account(1));
+      assert.equal(res.status, 403);
+      assert.equal(res.data.field, "turnstile");
+      assert.equal(sent.length, 0);
+    }));
+
+  it("accepte un jeton valide et transmet le secret, le jeton et l'adresse du visiteur", () =>
+    withTurnstile(async () => {
+      verdict = pass("signup");
+      const res = await client().post("/auth/register", { ...account(2), [TOKEN]: "jeton" }, { "X-Forwarded-For": "203.0.113.9" });
+      assert.equal(res.status, 201);
+      assert.deepEqual(sent, [{ secret: "secret-de-test", response: "jeton", remoteip: "203.0.113.9" }]);
+    }));
+
+  for (const [label, result] of [
+    ["jeton refusé ou déjà utilisé", { success: false, "error-codes": ["timeout-or-duplicate"] }],
+    ["jeton émis pour une autre action", pass("login")],
+    ["jeton émis pour un autre site", { ...pass("signup"), hostname: "pirate.example" }],
+    ["Cloudflare injoignable", new Error("réseau coupé")],
+  ]) {
+    it(`refuse : ${label}`, () =>
+      withTurnstile(async () => {
+        verdict = result;
+        const res = await client().post("/auth/register", { ...account(3), [TOKEN]: "jeton" });
+        assert.equal(res.status, 403);
+        assert.equal(res.data.field, "turnstile");
+        assert.equal(sent.length, 1);
+      }));
+  }
+
+  it("protège aussi la connexion et la demande de code, chacune avec sa propre action", () =>
+    withTurnstile(async () => {
+      const login = { identifier: "secu_auteur", password: "secret1", [TOKEN]: "jeton" };
+      const forgot = { email: "secu_robot@test.dev", [TOKEN]: "jeton" };
+      assert.equal((await client().post("/auth/login", { identifier: "secu_auteur", password: "secret1" })).status, 403);
+      assert.equal((await client().post("/auth/forgot-password", { email: forgot.email })).status, 403);
+
+      verdict = pass("login");
+      assert.equal((await client().post("/auth/login", login)).status, 200);
+      assert.equal((await client().post("/auth/forgot-password", forgot)).status, 403);
+      verdict = pass("forgot-password");
+      assert.equal((await client().post("/auth/forgot-password", forgot)).status, 200);
+    }));
+
+  it("n'accepte les clés de test de Cloudflare qu'en dehors de la production", () =>
+    withTurnstile(async () => {
+      verdict = { success: true, hostname: "example.com", metadata: { result_with_testing_key: true } };
+      assert.equal((await client().post("/auth/register", { ...account(4), [TOKEN]: "jeton" })).status, 201);
+      await withEnv({ NODE_ENV: "production" }, async () => {
+        const res = await client().post("/auth/register", { ...account(5), [TOKEN]: "jeton" }, { "X-Forwarded-For": "203.0.113.77" });
+        assert.equal(res.status, 403);
+      });
     }));
 });
 

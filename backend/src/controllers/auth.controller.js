@@ -6,8 +6,7 @@ const AppError = require("../utils/AppError");
 const mailer = require("../config/mailer");
 const { otpEmail, welcomeEmail } = require("../utils/mailTemplates");
 const { signToken, setAuthCookie, clearAuthCookie } = require("../utils/token");
-const { text, EMAIL_RE } = require("../utils/input");
-const { isDev } = require("../utils/env");
+const { text, EMAIL_RE, PASSWORD_MIN } = require("../utils/input");
 
 const OTP_TTL = 10 * 60 * 1000;
 const MAX_ATTEMPTS = 5;
@@ -18,8 +17,12 @@ function sha256(value) {
 }
 
 function checkPassword(password) {
-  if (password.length < 6) throw new AppError("Le mot de passe doit faire au moins 6 caractères");
-  if (Buffer.byteLength(password) > 72) throw new AppError("Le mot de passe est trop long (72 caractères max)");
+  if (password.length < PASSWORD_MIN) {
+    throw new AppError(`Le mot de passe doit faire au moins ${PASSWORD_MIN} caractères`, 400, "password");
+  }
+  if (Buffer.byteLength(password) > 72) {
+    throw new AppError("Le mot de passe est trop long (72 caractères max)", 400, "password");
+  }
 }
 
 function sendSession(res, user, status = 200) {
@@ -34,10 +37,9 @@ async function register(req, res) {
   const email = text(req.body.email).toLowerCase();
   const password = typeof req.body.password === "string" ? req.body.password : "";
 
-  if (!name || !username || !email || !password) {
-    throw new AppError("Tous les champs sont obligatoires");
-  }
-  if (!EMAIL_RE.test(email)) throw new AppError("Adresse email invalide");
+  const missing = Object.entries({ name, username, email, password }).find(([, value]) => !value);
+  if (missing) throw new AppError("Tous les champs sont obligatoires", 400, missing[0]);
+  if (!EMAIL_RE.test(email)) throw new AppError("Adresse email invalide", 400, "email");
   checkPassword(password);
 
   const user = await User.create({
@@ -87,6 +89,14 @@ async function forgotPassword(req, res) {
   const email = text(req.body.email).toLowerCase();
   if (!email) throw new AppError("Email requis");
 
+  // En production, sans SMTP, aucun code ne peut partir : on le dit au lieu d'annoncer un envoi.
+  // La réponse est la même que le compte existe ou non.
+  const production = process.env.NODE_ENV === "production";
+  if (production && !mailer.configured()) {
+    console.error("Mot de passe oublié : SMTP_USER est vide, le code ne peut pas être envoyé par email");
+    throw new AppError("L'envoi d'emails n'est pas configuré sur le serveur, réessaie plus tard", 503);
+  }
+
   const user = await User.findOne({ email });
 
   if (user && !user.isBlocked) {
@@ -101,13 +111,14 @@ async function forgotPassword(req, res) {
     try {
       await mailer.sendMail({ to: email, subject: "Ton code Solola", html: otpEmail(user.name, code) });
     } catch (err) {
-      console.error("Envoi de l'OTP impossible :", err.message);
+      console.error(`Envoi du code OTP à ${email} impossible : ${mailer.explain(err)}`);
       await Otp.deleteMany({ email });
       throw new AppError("Impossible d'envoyer l'email pour le moment, réessaie plus tard", 502);
     }
 
-    if (isDev() && !process.env.SMTP_USER) {
-      console.log(`OTP pour ${email} : ${code}`);
+    // Hors production et sans SMTP, le code n'est pas parti par email : on l'affiche ici pour tester.
+    if (!production && !mailer.configured()) {
+      console.log(`\n  Code OTP pour ${email} : ${code}  (SMTP non configuré, aucun email envoyé)\n`);
     }
   }
 

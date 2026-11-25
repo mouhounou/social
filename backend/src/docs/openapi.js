@@ -1,4 +1,5 @@
 const categories = require("../utils/categories");
+const { MAX_PARAGRAPHS } = require("../utils/media");
 
 const ref = (name) => ({ $ref: `#/components/schemas/${name}` });
 const json = (schema) => ({ "application/json": { schema } });
@@ -22,6 +23,16 @@ const common = {
 };
 const pick = (...codes) => Object.fromEntries(codes.map((c) => [c, common[c]]));
 
+const turnstileToken = {
+  "cf-turnstile-response": {
+    type: "string",
+    maxLength: 2048,
+    description:
+      "Jeton du widget Cloudflare Turnstile, à usage unique. Obligatoire quand `TURNSTILE_SECRET` est configuré " +
+      "sur l'API ; sans lui, la réponse est un 403 avec `field: \"turnstile\"`.",
+  },
+};
+
 const postFields = {
   title: { type: "string", maxLength: 150, example: "Mon carnet de croquis" },
   content: { type: "string", maxLength: 10000, example: "Sept jours, sept pages. #art #aquarelle" },
@@ -32,10 +43,31 @@ const postFields = {
     description: "Tags ajoutés à la main, séparés par des virgules (7 max). En JSON, un tableau est aussi accepté. S'ajoutent aux hashtags du contenu.",
     example: "art,aquarelle",
   },
-  image: { type: "string", format: "binary", description: "Image (5 Mo max), envoyée sur Cloudinary" },
+  image: { type: "string", format: "binary", description: "Image de couverture (5 Mo max), envoyée sur Cloudinary" },
+  paragraphs: {
+    type: "string",
+    description:
+      `Paragraphes facultatifs (${MAX_PARAGRAPHS} max), en JSON : la même liste que \`ParagraphInput\` en application/json. ` +
+      "Un média `{ \"file\": n }` désigne le n-ième fichier du champ `media` (0 pour le premier). " +
+      "Absent : paragraphes inchangés ; `[]` : tous retirés.",
+    example: '[{"title":"Jour 1","description":"Départ #voyage","media":{"file":0}},{"title":"Le film","media":{"link":"https://youtu.be/dQw4w9WgXcQ"}}]',
+  },
+  media: {
+    type: "array",
+    items: { type: "string", format: "binary" },
+    description: "Fichiers des paragraphes : image (5 Mo max) ou vidéo MP4, WebM, MOV (50 Mo max)",
+  },
 };
 
-const jsonPostFields = Object.fromEntries(Object.entries(postFields).filter(([key]) => key !== "image"));
+const jsonPostFields = {
+  ...Object.fromEntries(Object.entries(postFields).filter(([key]) => !["image", "media", "paragraphs"].includes(key))),
+  paragraphs: {
+    type: "array",
+    maxItems: MAX_PARAGRAPHS,
+    description: "Absent : paragraphes inchangés ; `[]` : tous retirés. En JSON, pas d'envoi de fichier : les médias viennent d'un lien.",
+    items: ref("ParagraphInput"),
+  },
+};
 
 const credentials = {
   type: "object",
@@ -43,6 +75,7 @@ const credentials = {
   properties: {
     identifier: { type: "string", description: "Email ou nom d'utilisateur", example: "reinhard" },
     password: { type: "string", example: "secret1" },
+    ...turnstileToken,
   },
 };
 
@@ -72,7 +105,14 @@ module.exports = {
     schemas: {
       Error: {
         type: "object",
-        properties: { message: { type: "string", example: "Connecte-toi pour continuer" } },
+        properties: {
+          message: { type: "string", example: "Connecte-toi pour continuer" },
+          field: {
+            type: "string",
+            description: "Champ du formulaire en cause, quand l'erreur en vise un",
+            example: "username",
+          },
+        },
       },
       Message: { type: "object", properties: { message: { type: "string" } } },
       Author: {
@@ -118,6 +158,11 @@ module.exports = {
           category: { type: "string", enum: categories },
           tags: { type: "array", items: { type: "string" }, example: ["art", "aquarelle"] },
           image: { type: "string", nullable: true, format: "uri" },
+          paragraphs: {
+            type: "array",
+            items: ref("Paragraph"),
+            description: "Vide pour une publication sans paragraphes",
+          },
           visibility: { type: "string", enum: ["public", "followers"] },
           author: ref("Author"),
           likesCount: { type: "integer" },
@@ -127,6 +172,61 @@ module.exports = {
           saved: { type: "boolean", description: "Enregistré par l'utilisateur connecté" },
           createdAt: { type: "string", format: "date-time" },
           updatedAt: { type: "string", format: "date-time" },
+        },
+      },
+      Media: {
+        type: "object",
+        properties: {
+          type: { type: "string", enum: ["image", "video"] },
+          provider: {
+            type: "string",
+            enum: ["cloudinary", "youtube", "vimeo", "dailymotion"],
+            description: "`cloudinary` : fichier à afficher (`img` ou `video`) ; sinon `url` est le lecteur à intégrer (iframe)",
+          },
+          url: { type: "string", format: "uri" },
+          link: {
+            type: "string",
+            nullable: true,
+            format: "uri",
+            description: "Lien d'origine quand le média vient d'une autre plateforme, null s'il a été envoyé depuis l'appareil",
+          },
+        },
+      },
+      Paragraph: {
+        type: "object",
+        properties: {
+          title: { type: "string", example: "Jour 1 : Lisbonne" },
+          description: { type: "string", example: "Arrivée sous le soleil. #voyage" },
+          media: { allOf: [ref("Media")], nullable: true },
+        },
+      },
+      ParagraphInput: {
+        type: "object",
+        required: ["title"],
+        properties: {
+          title: { type: "string", maxLength: 150 },
+          description: { type: "string", maxLength: 5000, description: "Ses hashtags deviennent des tags de la publication" },
+          media: {
+            type: "object",
+            nullable: true,
+            description:
+              "Un seul des trois : `file` (multipart), `link` (autre plateforme) ou `url` (garder le média actuel " +
+              "du paragraphe en modification, tel que renvoyé dans `Media.url`).",
+            properties: {
+              file: { type: "integer", minimum: 0, description: "Index du fichier dans le champ `media`" },
+              link: {
+                type: "string",
+                format: "uri",
+                maxLength: 2048,
+                description:
+                  "Lien http(s). YouTube, Vimeo et Dailymotion sont lus dans leur lecteur ; tout autre lien doit mener " +
+                  "directement à un fichier, récupéré sur Cloudinary.",
+                example: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+              },
+              type: { type: "string", enum: ["image", "video"], default: "image", description: "Pour un lien vers un fichier" },
+              url: { type: "string", format: "uri" },
+            },
+          },
         },
       },
       PostPage: {
@@ -144,6 +244,14 @@ module.exports = {
           _id: objectId,
           content: { type: "string", maxLength: 1000 },
           post: objectId,
+          parent: { ...objectId, nullable: true, description: "Commentaire de premier niveau auquel la réponse est rattachée ; null pour un commentaire" },
+          replyTo: {
+            type: "object",
+            nullable: true,
+            description: "Personne à qui la réponse s'adresse",
+            properties: { _id: objectId, name: { type: "string" }, username: { type: "string" } },
+          },
+          repliesCount: { type: "integer", description: "Nombre de réponses (commentaires de premier niveau)" },
           author: ref("Author"),
           createdAt: { type: "string", format: "date-time" },
         },
@@ -156,7 +264,7 @@ module.exports = {
         type: "object",
         properties: {
           _id: objectId,
-          type: { type: "string", enum: ["like", "comment", "follow"] },
+          type: { type: "string", enum: ["like", "comment", "reply", "follow"], description: "`reply` : réponse à l'un de tes commentaires" },
           read: { type: "boolean" },
           createdAt: { type: "string", format: "date-time" },
           actor: ref("Author"),
@@ -164,6 +272,12 @@ module.exports = {
             type: "object",
             nullable: true,
             properties: { _id: objectId, title: { type: "string" }, image: { type: "string", nullable: true } },
+          },
+          comment: {
+            type: "object",
+            nullable: true,
+            description: "Le commentaire, pour une notification de type `comment` (null pour les plus anciennes)",
+            properties: { _id: objectId, content: { type: "string" } },
           },
           following: { type: "boolean", description: "L'utilisateur connecté suit déjà l'auteur de l'action" },
         },
@@ -203,14 +317,20 @@ module.exports = {
             name: { type: "string", example: "Reinhard Van Zry" },
             username: { type: "string", pattern: "^[a-zA-Z0-9_.]{3,30}$", example: "reinhard" },
             email: { type: "string", format: "email", example: "reinhard@solola.dev" },
-            password: { type: "string", minLength: 6, maxLength: 72, example: "secret1" },
+            password: { type: "string", minLength: 5, maxLength: 72, example: "secret1" },
             role: { type: "string", enum: ["reader", "author"], default: "reader" },
+            ...turnstileToken,
           },
         }),
         responses: {
           201: ok("Compte créé et connecté", ref("Session")),
-          409: error("Email ou nom d'utilisateur déjà pris"),
-          ...pick(400, 429),
+          400: error(
+            "Données invalides, ou inscription impossible avec ces informations " +
+              "(le message ne dit pas si l'email a déjà un compte)"
+          ),
+          403: error("Vérification anti-robot échouée"),
+          409: error("Nom d'utilisateur déjà pris"),
+          ...pick(429),
         },
       },
     },
@@ -222,7 +342,7 @@ module.exports = {
         responses: {
           200: ok("Connecté", ref("Session")),
           401: error("Identifiants incorrects"),
-          403: error("Compte suspendu"),
+          403: error("Compte suspendu, ou vérification anti-robot échouée"),
           ...pick(400, 429),
         },
       },
@@ -263,10 +383,11 @@ module.exports = {
         requestBody: body({
           type: "object",
           required: ["email"],
-          properties: { email: { type: "string", format: "email" } },
+          properties: { email: { type: "string", format: "email" }, ...turnstileToken },
         }),
         responses: {
           200: ok("Demande prise en compte", ref("Message")),
+          403: error("Vérification anti-robot échouée"),
           502: error("L'email n'a pas pu être envoyé"),
           ...pick(400, 429),
         },
@@ -302,7 +423,7 @@ module.exports = {
           properties: {
             email: { type: "string", format: "email" },
             resetToken: { type: "string" },
-            password: { type: "string", minLength: 6, maxLength: 72 },
+            password: { type: "string", minLength: 5, maxLength: 72 },
           },
         }),
         responses: { 200: ok("Mot de passe changé, connecté", ref("Session")), ...pick(400, 403, 404, 429) },
@@ -315,7 +436,7 @@ module.exports = {
         description: "Un invité ne voit que les articles publics ; un membre voit aussi ceux des comptes qu'il suit.",
         security: optionalMember,
         parameters: [
-          { name: "q", in: "query", description: "Recherche dans le titre, le contenu et les hashtags", schema: { type: "string", maxLength: 100 } },
+          { name: "q", in: "query", description: "Recherche dans le titre, le contenu, les hashtags et les paragraphes", schema: { type: "string", maxLength: 100 } },
           { name: "category", in: "query", schema: { type: "string", enum: categories } },
           { name: "tag", in: "query", description: "Hashtag sans #", schema: { type: "string" } },
           { name: "author", in: "query", description: "Nom d'utilisateur", schema: { type: "string" } },
@@ -329,6 +450,9 @@ module.exports = {
       post: {
         tags: ["Articles"],
         summary: "Publier un article (auteur ou admin)",
+        description:
+          "Les paragraphes sont facultatifs. Chacun a un titre, une description et au plus un média : image ou vidéo " +
+          "envoyée depuis l'appareil (multipart) ou récupérée depuis une autre plateforme par son lien.",
         security: member,
         requestBody: {
           required: true,
@@ -347,7 +471,8 @@ module.exports = {
         },
         responses: {
           201: ok("Article créé", { type: "object", properties: { post: ref("Post") } }),
-          503: error("Envoi d'images non configuré"),
+          503: error("Envoi d'images et de vidéos non configuré"),
+          504: error("Le service des médias n'a pas répondu à temps"),
           ...pick(400, 401, 403),
         },
       },
@@ -379,6 +504,9 @@ module.exports = {
       patch: {
         tags: ["Articles"],
         summary: "Modifier un article (son auteur ou un admin)",
+        description:
+          "Les champs absents ne changent pas. `paragraphs` remplace la liste entière : pour garder le média d'un " +
+          "paragraphe, renvoie `{ \"url\": <Media.url> }`. Les fichiers qui ne servent plus sont supprimés de Cloudinary.",
         security: member,
         requestBody: {
           required: true,
@@ -399,14 +527,15 @@ module.exports = {
         },
         responses: {
           200: ok("Article modifié", { type: "object", properties: { post: ref("Post") } }),
-          503: error("Envoi d'images non configuré"),
+          503: error("Envoi d'images et de vidéos non configuré"),
+          504: error("Le service des médias n'a pas répondu à temps"),
           ...pick(400, 401, 403, 404),
         },
       },
       delete: {
         tags: ["Articles"],
         summary: "Supprimer un article (son auteur ou un admin)",
-        description: "Supprime aussi ses commentaires, ses notifications et son image.",
+        description: "Supprime aussi ses commentaires, ses notifications, son image et les médias de ses paragraphes.",
         security: member,
         responses: { 200: ok("Article supprimé", ref("Message")), ...pick(400, 401, 403, 404) },
       },
@@ -434,6 +563,7 @@ module.exports = {
       get: {
         tags: ["Commentaires"],
         summary: "Commentaires d'un article",
+        description: "Seulement les commentaires de premier niveau ; leurs réponses se lisent avec `GET /comments/{id}/replies`.",
         security: optionalMember,
         responses: {
           200: ok("Commentaires, du plus ancien au plus récent", {
@@ -445,16 +575,36 @@ module.exports = {
       },
       post: {
         tags: ["Commentaires"],
-        summary: "Commenter",
+        summary: "Commenter, ou répondre à un commentaire",
+        description:
+          "Avec `parent`, le commentaire est une réponse. Il n'y a qu'un niveau de réponses : répondre à une réponse " +
+          "rattache la nouvelle réponse au même commentaire, en l'adressant à l'auteur de la réponse. La personne à qui " +
+          "l'on répond reçoit une notification `reply`, l'auteur de l'article une notification `comment`.",
         security: member,
         requestBody: body({
           type: "object",
           required: ["content"],
-          properties: { content: { type: "string", maxLength: 1000, example: "Superbe !" } },
+          properties: {
+            content: { type: "string", maxLength: 1000, example: "Superbe !" },
+            parent: { ...objectId, description: "Commentaire ou réponse auquel on répond" },
+          },
         }),
         responses: {
           201: ok("Commentaire ajouté", { type: "object", properties: { comment: ref("Comment") } }),
           ...pick(400, 401, 403, 404),
+        },
+      },
+    },
+    "/comments/{id}/replies": {
+      parameters: [idParam("Identifiant du commentaire")],
+      get: {
+        tags: ["Commentaires"],
+        summary: "Réponses à un commentaire",
+        description: "Du plus ancien au plus récent. Mêmes règles de visibilité que l'article.",
+        security: optionalMember,
+        responses: {
+          200: ok("Réponses", { type: "object", properties: { replies: { type: "array", items: ref("Comment") } } }),
+          ...pick(400, 403, 404),
         },
       },
     },
@@ -463,9 +613,19 @@ module.exports = {
       delete: {
         tags: ["Commentaires"],
         summary: "Supprimer un commentaire",
-        description: "Autorisé à l'auteur du commentaire, à l'auteur de l'article et aux admins.",
+        description:
+          "Autorisé à l'auteur du commentaire, à l'auteur de l'article et aux admins. Un commentaire part avec ses réponses.",
         security: member,
-        responses: { 200: ok("Commentaire supprimé", ref("Message")), ...pick(401, 403, 404) },
+        responses: {
+          200: ok("Commentaire supprimé", {
+            type: "object",
+            properties: {
+              message: { type: "string" },
+              removed: { type: "integer", description: "Commentaires supprimés, réponses comprises" },
+            },
+          }),
+          ...pick(401, 403, 404),
+        },
       },
     },
     "/users/me": {
@@ -519,7 +679,7 @@ module.exports = {
           required: ["currentPassword", "newPassword"],
           properties: {
             currentPassword: { type: "string" },
-            newPassword: { type: "string", minLength: 6, maxLength: 72 },
+            newPassword: { type: "string", minLength: 5, maxLength: 72 },
           },
         }),
         responses: {
@@ -592,16 +752,28 @@ module.exports = {
         tags: ["Notifications"],
         summary: "Mes notifications",
         security: member,
-        parameters: [{ name: "limit", in: "query", schema: { type: "integer", minimum: 1, maximum: 50, default: 20 } }],
+        parameters: [
+          { name: "limit", in: "query", schema: { type: "integer", minimum: 1, maximum: 50, default: 20 } },
+          {
+            name: "type",
+            in: "query",
+            description: "Seulement ce type ; `comment` comprend aussi les réponses (`reply`)",
+            schema: { type: "string", enum: ["like", "comment", "follow"] },
+          },
+          { name: "page", in: "query", schema: { type: "integer", minimum: 1, default: 1 } },
+        ],
         responses: {
           200: ok("Notifications, de la plus récente à la plus ancienne", {
             type: "object",
             properties: {
-              unread: { type: "integer" },
+              unread: { type: "integer", description: "Non lues, tous types confondus" },
+              page: { type: "integer", example: 1 },
+              pages: { type: "integer", example: 3 },
+              total: { type: "integer", description: "Notifications du filtre demandé", example: 47 },
               notifications: { type: "array", items: ref("Notification") },
             },
           }),
-          ...pick(401),
+          ...pick(400, 401),
         },
       },
     },

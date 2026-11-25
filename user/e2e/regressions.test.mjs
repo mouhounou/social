@@ -1,6 +1,6 @@
 import { describe, it, before, after } from "node:test";
 import assert from "node:assert/strict";
-import { FRONT, PNG, api, apiLogin, close, ensureUser, launch, login, page, PASSWORD } from "./helpers.mjs";
+import { FRONT, PNG, TURNSTILE_FIELD, api, apiLogin, close, ensureUser, launch, login, page, PASSWORD } from "./helpers.mjs";
 
 let authorCookie;
 let firstPost;
@@ -66,6 +66,114 @@ describe("session", () => {
   });
 });
 
+describe("inscription", () => {
+  async function registerPage() {
+    const p = await page();
+    await p.goto(`${FRONT}/register`);
+    await p.waitForLoadState("networkidle");
+    return p;
+  }
+
+  it("signale en rouge chaque champ fautif, puis le libère dès que la saisie est bonne", async () => {
+    const p = await registerPage();
+    const invalid = p.locator('form [aria-invalid="true"]');
+    const password = p.getByLabel("Mot de passe", { exact: true });
+    await p.getByRole("button", { name: "Créer mon compte" }).click();
+    assert.equal(await invalid.count(), 4);
+    assert.ok(await p.getByLabel("Nom complet").evaluate((el) => el === document.activeElement));
+    await password.fill("abcd");
+    await p.getByText("Au moins 5 caractères", { exact: true }).waitFor();
+    await password.fill("abcde");
+    assert.equal(await password.getAttribute("aria-invalid"), null);
+    assert.equal(await invalid.count(), 3);
+  });
+
+  it("adapte « Le Boss » au lieu de le refuser, et pose l'erreur du serveur sur le bon champ", async () => {
+    const p = await registerPage();
+    await p.route("**/api/auth/register", (r) =>
+      r.fulfill({ status: 409, json: { message: "Ce nom d'utilisateur est déjà pris", field: "username" } })
+    );
+    const request = p.waitForRequest((r) => r.url().includes("/api/auth/register"));
+    const username = p.getByLabel("Nom d'utilisateur");
+    await p.getByLabel("Nom complet").fill("Le Boss");
+    await username.fill("Le Boss");
+    await p.getByText("Ton identifiant sera @le_boss").waitFor();
+    await p.getByLabel("Email").fill("boss@e2e.test");
+    assert.equal(await username.inputValue(), "le_boss");
+    await p.getByLabel("Mot de passe", { exact: true }).fill("(Rh*5");
+    await p.getByRole("button", { name: "Créer mon compte" }).click();
+
+    const body = JSON.parse((await request).postData());
+    assert.equal(body.username, "le_boss");
+    assert.equal(body.password, "(Rh*5");
+    assert.equal(body[TURNSTILE_FIELD], "jeton-e2e-1");
+    await p.getByText("Ce nom d'utilisateur est déjà pris").waitFor();
+    assert.equal(await username.getAttribute("aria-invalid"), "true");
+    assert.equal(await p.locator('form [aria-invalid="true"]').count(), 1);
+  });
+});
+
+describe("anti-robots et confidentialité des comptes", () => {
+  async function fillRegister(p, username, email) {
+    await p.goto(`${FRONT}/register`);
+    await p.waitForLoadState("networkidle");
+    await p.getByLabel("Nom complet").fill("Curieux");
+    await p.getByLabel("Nom d'utilisateur").fill(username);
+    await p.getByLabel("Email").fill(email);
+    await p.getByLabel("Mot de passe", { exact: true }).fill("abcde");
+  }
+
+  it("ne dit pas qu'un email a déjà un compte", async () => {
+    const p = await page();
+    await fillRegister(p, `curieux_${Date.now().toString(36)}`, "e2e_lecteur@e2e.test");
+    await p.getByRole("button", { name: "Créer mon compte" }).click();
+    await p.getByText("Impossible de créer ce compte avec ces informations").waitFor();
+    assert.equal(await p.locator('form [aria-invalid="true"]').count(), 0);
+    assert.doesNotMatch(await p.locator("form").innerText(), /déjà utilisé/i);
+    assert.equal(p.url(), `${FRONT}/register`);
+  });
+
+  it("signale un refus anti-robot sous le widget, puis repart avec un jeton neuf", async () => {
+    const p = await page();
+    const tokens = [];
+    await p.route("**/api/auth/register", (r) => {
+      tokens.push(JSON.parse(r.request().postData())[TURNSTILE_FIELD]);
+      r.fulfill({ status: 403, json: { message: "La vérification anti-robot n'a pas abouti.", field: "turnstile" } });
+    });
+    await fillRegister(p, "robot", "robot@e2e.test");
+    await p.getByRole("button", { name: "Créer mon compte" }).click();
+    await p.getByText("La vérification anti-robot n'a pas abouti.").waitFor();
+    assert.equal(await p.locator('form [aria-invalid="true"]').count(), 0);
+    await p.getByRole("button", { name: "Créer mon compte" }).click();
+    while (tokens.length < 2) await p.waitForTimeout(50);
+    assert.deepEqual(tokens, ["jeton-e2e-1", "jeton-e2e-2"]);
+  });
+
+  for (const [label, path, fill, button, endpoint] of [
+    [
+      "la connexion",
+      "/login",
+      async (p) => {
+        await p.getByLabel("Email ou nom d'utilisateur").fill("e2e_lecteur");
+        await p.getByLabel("Mot de passe", { exact: true }).fill(PASSWORD);
+      },
+      "Se connecter",
+      "/api/auth/login",
+    ],
+    ["la demande de code", "/forgot-password", (p) => p.getByLabel("Email").fill("personne@e2e.test"), "Envoyer le code", "/api/auth/forgot-password"],
+  ]) {
+    it(`joint le jeton anti-robot à ${label}`, async () => {
+      const p = await page();
+      await p.goto(`${FRONT}${path}`);
+      await p.waitForLoadState("networkidle");
+      await fill(p);
+      const request = p.waitForRequest((r) => r.url().includes(endpoint));
+      await p.getByRole("button", { name: button }).click();
+      assert.equal(JSON.parse((await request).postData())[TURNSTILE_FIELD], "jeton-e2e-1");
+    });
+  }
+});
+
 describe("redirection après connexion", () => {
   for (const next of ["/%5Cexample.org", "/%5C%5Cexample.org", "/%09/example.org", "https://example.org"]) {
     it(`reste sur le site avec next=${decodeURIComponent(next)}`, async () => {
@@ -73,7 +181,7 @@ describe("redirection après connexion", () => {
       await p.route("**://example.org/**", (r) => r.fulfill({ body: "externe" }));
       await p.goto(`${FRONT}/login?next=${next}`);
       await p.getByLabel("Email ou nom d'utilisateur").fill("e2e_lecteur");
-      await p.getByLabel("Mot de passe").fill(PASSWORD);
+      await p.getByLabel("Mot de passe", { exact: true }).fill(PASSWORD);
       await p.getByRole("button", { name: "Se connecter" }).click();
       await p.waitForURL(`${FRONT}/`);
     });
@@ -83,7 +191,7 @@ describe("redirection après connexion", () => {
     const p = await page();
     await p.goto(`${FRONT}/login?next=%2Fsaved`);
     await p.getByLabel("Email ou nom d'utilisateur").fill("e2e_lecteur");
-    await p.getByLabel("Mot de passe").fill(PASSWORD);
+    await p.getByLabel("Mot de passe", { exact: true }).fill(PASSWORD);
     await p.getByRole("button", { name: "Se connecter" }).click();
     await p.waitForURL(`${FRONT}/saved`);
   });
@@ -93,7 +201,7 @@ describe("fil et articles", () => {
   it("n'affiche pas de doublon après une publication puis le chargement de la page suivante", async () => {
     const p = await page();
     await login(p, "e2e_auteur");
-    await p.goto(`${FRONT}/u/e2e_auteur`);
+    await p.goto(`${FRONT}/`);
     const title = `Pendant la lecture ${Date.now()}`;
     await p.getByPlaceholder(/Partage quelque chose/).click();
     await p.getByPlaceholder("Titre de ta publication").fill(title);
@@ -101,6 +209,8 @@ describe("fil et articles", () => {
     await p.getByRole("button", { name: "Publier" }).click();
     await p.getByText(title).waitFor();
     await p.locator("article").nth(10).waitFor();
+    // Sur desktop, seule la colonne du fil défile : la molette doit être au-dessus d'elle.
+    await p.locator("article").first().hover();
     await p.mouse.wheel(0, 20000);
     await p.locator("article").nth(11).waitFor();
     await p.waitForTimeout(1500);
@@ -112,7 +222,7 @@ describe("fil et articles", () => {
   it("ajoute des tags depuis le bouton du formulaire, sept au maximum", async () => {
     const p = await page();
     await login(p, "e2e_auteur");
-    await p.goto(`${FRONT}/u/e2e_auteur`);
+    await p.goto(`${FRONT}/`);
     const composer = p.locator("form", { has: p.getByPlaceholder(/Partage quelque chose/) });
     const title = `Avec tags ${Date.now()}`;
     await composer.getByRole("button", { name: "Ajouter des tags" }).click();
@@ -136,6 +246,115 @@ describe("fil et articles", () => {
     const card = p.locator("article", { hasText: title });
     await card.getByRole("link", { name: "#un", exact: true }).waitFor();
     assert.equal(await card.locator("a[href^='/?tag=']").count(), 6);
+    assert.deepEqual(p.errors, []);
+  });
+
+  it("publie un article avec des paragraphes depuis le formulaire complet", async () => {
+    const p = await page();
+    await login(p, "e2e_auteur");
+    await p.goto(`${FRONT}/posts/new`);
+    const form = p.locator("form", { hasText: "Nouvelle publication" });
+    const title = `Paragraphes ${Date.now()}`;
+    await form.locator("input").first().fill(title);
+    await form.locator("textarea").first().fill("Introduction");
+    await form.getByRole("button", { name: "Ajouter un paragraphe" }).click();
+    await form.getByLabel("Titre du paragraphe 1").fill("Première partie");
+    await form.getByLabel("Description du paragraphe 1").fill("Le texte du paragraphe #e2e");
+    await form.getByRole("button", { name: "Ajouter un paragraphe" }).click();
+    await form.getByLabel("Titre du paragraphe 2").fill("La vidéo");
+    await form.getByRole("group", { name: "Média du paragraphe 2" }).getByRole("button", { name: "Par un lien" }).click();
+    await form.getByLabel("Lien du média").fill("https://youtu.be/dQw4w9WgXcQ");
+    await form.getByText("Vidéo YouTube : elle sera lue dans son lecteur.").waitFor();
+    await form.getByRole("button", { name: "Publier" }).click();
+    await p.waitForURL(/\/posts\/[a-f0-9]{24}$/);
+    await p.getByRole("heading", { name: "Première partie" }).waitFor();
+    await p.getByRole("heading", { name: "La vidéo" }).waitFor();
+    assert.equal(await p.locator("article iframe[src='https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ']").count(), 1);
+  });
+
+  it("pagine le profil d'un auteur par 6, en grille, avec la page dans l'adresse", async () => {
+    const p = await page();
+    await p.goto(`${FRONT}/u/e2e_auteur`);
+    const tiles = p.locator("article");
+    await p.getByRole("navigation", { name: "Pagination" }).waitFor();
+    assert.equal(await tiles.count(), 6);
+    const first = await tiles.locator("h2").allInnerTexts();
+
+    await p.getByRole("link", { name: "Page 2", exact: true }).click();
+    await p.waitForURL(/\/u\/e2e_auteur\?page=2$/);
+    await p.getByRole("link", { name: "Page 2", exact: true }).and(p.locator("[aria-current=page]")).waitFor();
+    await p.waitForFunction(() => !document.querySelector("[aria-busy=true]"));
+    const second = await tiles.locator("h2").allInnerTexts();
+    assert.ok(second.length > 0 && second.length <= 6);
+    assert.equal(second.filter((t) => first.includes(t)).length, 0);
+
+    // La grille a trois colonnes sur desktop.
+    const tops = await tiles.evaluateAll((els) => els.slice(0, 3).map((e) => Math.round(e.getBoundingClientRect().top)));
+    if (second.length >= 3) assert.equal(new Set(tops).size, 1);
+
+    await p.goBack();
+    await p.waitForURL(/\/u\/e2e_auteur$/);
+    await p.getByRole("link", { name: "Page 1", exact: true }).and(p.locator("[aria-current=page]")).waitFor();
+    assert.deepEqual(p.errors, []);
+  });
+
+  it("demande une confirmation avant de se désabonner ou de suivre depuis la liste des abonnements", async () => {
+    const reader = await apiLogin("e2e_lecteur");
+    const followsAuthor = async () => (await api(reader, "GET", "/users/e2e_auteur")).user.isFollowing;
+    if (!(await followsAuthor())) await api(reader, "POST", `/users/${(await api(reader, "GET", "/users/e2e_auteur")).user._id}/follow`);
+
+    const p = await page();
+    await login(p, "e2e_lecteur");
+    await p.goto(`${FRONT}/u/e2e_lecteur`);
+    await p.getByRole("button", { name: /Abonnements/ }).click();
+    const list = p.getByRole("dialog", { name: "e2e_lecteur" });
+    await list.getByRole("tab", { name: /Abonnements/, selected: true }).waitFor();
+    const confirm = p.getByRole("alertdialog");
+
+    await list.getByRole("button", { name: "Abonné à e2e_auteur, se désabonner" }).click();
+    await confirm.getByRole("heading", { name: "Te désabonner de e2e_auteur ?" }).waitFor();
+    await confirm.getByRole("button", { name: "Annuler" }).click();
+    await confirm.waitFor({ state: "detached" });
+    assert.equal(await followsAuthor(), true, "rien ne change sans confirmation");
+
+    await list.getByRole("button", { name: "Abonné à e2e_auteur, se désabonner" }).click();
+    await confirm.getByRole("button", { name: "Se désabonner" }).click();
+    await list.getByRole("button", { name: "Suivre e2e_auteur" }).waitFor();
+    assert.equal(await followsAuthor(), false);
+
+    await list.getByRole("button", { name: "Suivre e2e_auteur" }).click();
+    await confirm.getByRole("button", { name: "Suivre" }).click();
+    await list.getByRole("button", { name: "Abonné à e2e_auteur, se désabonner" }).waitFor();
+    assert.equal(await followsAuthor(), true);
+    assert.deepEqual(p.errors, []);
+  });
+
+  it("répond à un commentaire, ouvre le fil et supprime la réponse après confirmation", async () => {
+    const reader = await apiLogin("e2e_lecteur");
+    const root = (await api(reader, "POST", `/posts/${firstPost._id}/comments`, { content: `question ${Date.now()}` })).comment;
+    const p = await page();
+    await login(p, "e2e_auteur");
+    await p.goto(`${FRONT}/posts/${firstPost._id}`);
+    const panel = p.locator("#comments");
+    const thread = panel.locator("li", { hasText: root.content }).first();
+    const header = panel.locator("h2");
+    await thread.waitFor();
+    const before = Number((await header.innerText()).match(/\d+/)[0]);
+
+    await thread.getByRole("button", { name: "Répondre" }).first().click();
+    await panel.getByText("En réponse à e2e_lecteur").waitFor();
+    const text = `réponse ${Date.now()}`;
+    await p.keyboard.type(text);
+    await p.keyboard.press("Enter");
+    await thread.getByText(text).waitFor();
+    await thread.getByRole("button", { name: "Masquer les réponses" }).waitFor();
+    assert.equal(await header.innerText(), `Commentaires (${before + 1})`);
+
+    await panel.locator("[id^=comment-]", { hasText: text }).getByRole("button", { name: "Supprimer" }).click();
+    await p.getByRole("alertdialog").getByRole("button", { name: "Supprimer" }).click();
+    await thread.getByText(text).waitFor({ state: "detached" });
+    assert.equal(await header.innerText(), `Commentaires (${before})`);
+    await api(reader, "DELETE", `/comments/${root._id}`);
     assert.deepEqual(p.errors, []);
   });
 

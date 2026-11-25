@@ -4,9 +4,11 @@ import Image from "next/image";
 import { useMemo, useRef, useState } from "react";
 import { Camera, Trash2 } from "lucide-react";
 import Avatar from "@/components/ui/Avatar";
+import FieldError from "@/components/ui/FieldError";
 import { useAuth } from "@/hooks/useAuth";
-import { api } from "@/lib/api";
+import { api, type ApiError } from "@/lib/api";
 import { DEFAULT_COVER } from "@/lib/constants";
+import { USERNAME_HINT, focusField, normalizeUsername, usernameError as checkUsername } from "@/utils/validation";
 import type { User } from "@/types";
 
 type Props = {
@@ -38,6 +40,7 @@ export default function ProfileForm({ user, onSaved, onCancel }: Props) {
   });
   const [avatar, setAvatar] = useState<ImageState>({ file: null, remove: false });
   const [cover, setCover] = useState<ImageState>({ file: null, remove: false });
+  const [usernameError, setUsernameError] = useState("");
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -47,13 +50,20 @@ export default function ProfileForm({ user, onSaved, onCancel }: Props) {
   const update = (field: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
     setForm((f) => ({ ...f, [field]: e.target.value }));
 
-  async function submit(e: React.FormEvent) {
+  async function submit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    setSaving(true);
+    const formEl = e.currentTarget;
+    const values = { ...form, username: normalizeUsername(form.username) };
+    const invalid = checkUsername(form.username);
+    setForm(values);
+    setUsernameError(invalid);
     setMessage(null);
+    if (invalid) return focusField(formEl, "username");
+
+    setSaving(true);
 
     const data = new FormData();
-    for (const [key, value] of Object.entries(form)) data.append(key, value.trim());
+    for (const [key, value] of Object.entries(values)) data.append(key, value.trim());
     if (avatar.file) data.append("avatar", avatar.file);
     if (cover.file) data.append("cover", cover.file);
     if (avatar.remove) data.append("removeAvatar", "true");
@@ -67,7 +77,11 @@ export default function ProfileForm({ user, onSaved, onCancel }: Props) {
       setMessage({ ok: true, text: "Profil mis à jour" });
       onSaved?.(res.user);
     } catch (err) {
-      setMessage({ ok: false, text: (err as Error).message });
+      const { message: text, field } = err as ApiError;
+      if (field === "username") {
+        setUsernameError(text);
+        focusField(formEl, "username");
+      } else setMessage({ ok: false, text });
     } finally {
       setSaving(false);
     }
@@ -156,16 +170,30 @@ export default function ProfileForm({ user, onSaved, onCancel }: Props) {
           <Field label="Nom">
             <input value={form.name} onChange={update("name")} className="input rounded-xl" maxLength={60} required />
           </Field>
-          <Field label="Nom d'utilisateur">
-            <input
-              value={form.username}
-              onChange={update("username")}
-              className="input rounded-xl"
-              pattern="[a-zA-Z0-9_.]{3,30}"
-              title="3 à 30 caractères : lettres, chiffres, _ ou ."
-              required
-            />
-          </Field>
+          <div>
+            <Field label="Nom d'utilisateur">
+              <input
+                name="username"
+                value={form.username}
+                onChange={(e) => {
+                  update("username")(e);
+                  if (usernameError) setUsernameError(checkUsername(e.target.value));
+                }}
+                onBlur={() => setForm((f) => ({ ...f, username: normalizeUsername(f.username) }))}
+                className="input rounded-xl"
+                aria-invalid={usernameError ? true : undefined}
+                autoComplete="username"
+                autoCapitalize="none"
+                autoCorrect="off"
+                spellCheck={false}
+              />
+            </Field>
+            {usernameError ? (
+              <FieldError>{usernameError}</FieldError>
+            ) : (
+              <p className="mt-1.5 text-xs text-muted">{USERNAME_HINT}</p>
+            )}
+          </div>
         </div>
 
         <Field label="Bio" hint={`${form.bio.length}/160`}>

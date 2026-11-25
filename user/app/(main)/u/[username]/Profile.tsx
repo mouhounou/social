@@ -2,9 +2,10 @@
 
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Bookmark, CalendarDays, Camera, Grid3x3, Link2, LoaderCircle, MapPin, UserPen } from "lucide-react";
 import Avatar from "@/components/ui/Avatar";
-import Feed from "@/components/post/Feed";
+import PostGrid from "@/components/post/PostGrid";
 import FollowButton from "@/components/profile/FollowButton";
 import Modal from "@/components/ui/Modal";
 import Spinner from "@/components/ui/Spinner";
@@ -24,7 +25,9 @@ export default function Profile({ username }: { username: string }) {
   const [error, setError] = useState("");
   const [editing, setEditing] = useState(false);
   const [list, setList] = useState<"followers" | "following" | null>(null);
-  const [tab, setTab] = useState<"posts" | "saved">("posts");
+  const router = useRouter();
+  const pathname = usePathname();
+  const params = useSearchParams();
   const [uploading, setUploading] = useState<"avatar" | "cover" | null>(null);
   const [uploadError, setUploadError] = useState("");
   const avatarInput = useRef<HTMLInputElement>(null);
@@ -47,6 +50,13 @@ export default function Profile({ username }: { username: string }) {
   }
 
   const isMe = !!user.isMe;
+  // L'onglet est dans l'adresse (?tab=saved), comme la page de la grille : le retour arrière y ramène.
+  const tab = isMe && params.get("tab") === "saved" ? "saved" : "posts";
+
+  function openTab(next: "posts" | "saved") {
+    if (next === tab) return;
+    router.push(next === "saved" ? `${pathname}?tab=saved` : pathname, { scroll: false });
+  }
 
   function applyUpdate(updated: User) {
     setUser((u) => u && { ...u, ...updated, isMe: true });
@@ -237,7 +247,8 @@ export default function Profile({ username }: { username: string }) {
               ].map(({ key, label, icon: Icon }) => (
                 <button
                   key={key}
-                  onClick={() => setTab(key)}
+                  onClick={() => openTab(key)}
+                  aria-pressed={tab === key}
                   className={`flex flex-1 items-center justify-center gap-2 rounded-2xl py-2.5 text-sm font-medium transition ${
                     tab === key ? "bg-brand-soft text-brand" : "text-muted hover:bg-field"
                   }`}
@@ -249,14 +260,16 @@ export default function Profile({ username }: { username: string }) {
           )}
 
           {tab === "posts" ? (
-            <Feed
+            <PostGrid
               key="posts"
               filters={{ author: user.username }}
+              showAuthor={false}
+              showSort
               showComposer={isMe}
               empty={isMe ? "Tu n'as encore rien publié." : "Aucune publication pour le moment."}
             />
           ) : (
-            <Feed key="saved" filters={{ saved: "true" }} showSort={false} empty="Tu n'as encore rien enregistré." />
+            <PostGrid key="saved" filters={{ saved: "true" }} empty="Tu n'as encore rien enregistré." />
           )}
         </section>
       </div>
@@ -277,7 +290,19 @@ export default function Profile({ username }: { username: string }) {
         </Modal>
       )}
 
-      {list && <ConnectionsModal username={user.username} type={list} onClose={() => setList(null)} />}
+      {list && (
+        <ConnectionsModal
+          username={user.username}
+          name={user.name}
+          type={list}
+          counts={{ followers: user.followersCount, following: user.followingCount }}
+          onClose={() => setList(null)}
+          // Sur son propre profil, suivre ou se désabonner depuis la liste change le nombre d'abonnements.
+          onFollowChange={(following) =>
+            isMe && setUser((u) => u && { ...u, followingCount: u.followingCount + (following ? 1 : -1) })
+          }
+        />
+      )}
     </div>
   );
 }
