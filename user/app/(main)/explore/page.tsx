@@ -6,6 +6,7 @@ import SuggestionsCard from "@/components/profile/SuggestionsCard";
 
 export const metadata: Metadata = { title: "Explorer" };
 
+
 export default function ExplorePage() {
   return (
     <div className="mx-auto grid max-w-5xl gap-6 lg:grid-cols-[1fr_280px]">
