@@ -7,7 +7,6 @@ function notFound(req, res) {
 function errorHandler(err, req, res, next) {
   let status = err.status || 500;
   let message = err.message || "Erreur serveur";
-  // Champ du formulaire concerné, pour que le client le signale directement.
   let field = err instanceof AppError ? err.field : undefined;
 
   if (err.name === "ValidationError") {
@@ -20,7 +19,6 @@ function errorHandler(err, req, res, next) {
   } else if (err.code === 11000) {
     [field] = Object.keys(err.keyValue);
     if (field === "email") {
-      // Ne confirme pas qu'une adresse a déjà un compte : message neutre, sans champ désigné.
       status = 400;
       field = undefined;
       message = "Impossible de créer ce compte avec ces informations. Si tu es déjà inscrit, connecte-toi.";

@@ -6,8 +6,7 @@ const { turnstile } = require("../middlewares/turnstile");
 
 const failedOnly = { skipSuccessfulRequests: true };
 
-// Le contrôle anti-robot passe avant les limites par compte : un robot sans jeton
-// ne peut pas épuiser le quota d'un compte qui n'est pas le sien.
+
 router.post("/register", limiter(10), turnstile("signup"), ctrl.register);
 router.post(
   "/login",

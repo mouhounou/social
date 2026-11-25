@@ -19,12 +19,12 @@ function refuse(reason) {
   return new AppError("La vérification anti-robot n'a pas abouti. Réessaie dans un instant.", 403, "turnstile");
 }
 
-// Les clés de test de Cloudflare ne renvoient ni action ni vrai nom de domaine : tolérées hors production seulement.
 const isTestKeyResult = (result) =>
   process.env.NODE_ENV !== "production" && result.metadata?.result_with_testing_key === true;
 
-// Exige un jeton Turnstile valide, émis pour cette action et pour notre site, avant de laisser passer la requête.
-// Sans TURNSTILE_SECRET, la protection est inactive.
+
+
+
 function turnstile(action) {
   return async (req, res, next) => {
     if (!enabled()) return next();

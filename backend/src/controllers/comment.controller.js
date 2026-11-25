@@ -26,7 +26,6 @@ function serialize(c) {
   };
 }
 
-/** Commentaires de premier niveau d'un article, du plus ancien au plus récent, avec leur nombre de réponses. */
 async function listComments(req, res) {
   const post = await findVisiblePost(req.params.id, req.user);
   const comments = await Comment.find({ post: post._id, parent: null })
